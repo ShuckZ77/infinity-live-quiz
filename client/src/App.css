@@ -294,6 +294,11 @@
   gap: 0;
 }
 
+/* Add padding only when Session Leaderboard is visible */
+.has-session-leaderboard .main-content {
+  padding-bottom: 100px;
+}
+
 /* ==========================================
    LEFT PANEL (Timer + Chat)
    ========================================== */
@@ -302,7 +307,9 @@
   flex-direction: column;
   flex: 1;
   min-width: 400px;
+  min-height: 0; /* Critical for flex children to shrink properly */
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 
 /* ==========================================
@@ -547,6 +554,7 @@
   display: flex;
   flex-direction: column;
   padding: 1rem 2rem;
+  min-height: 0; /* Critical for nested flex to work */
   overflow: hidden;
   transition: opacity 0.3s ease;
 }
@@ -595,7 +603,8 @@
 }
 
 .messages-list {
-  flex: 1;
+  flex: 1 1 0; /* Grow, shrink, and start from 0 */
+  min-height: 0; /* Allow shrinking in flex container */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -2191,7 +2200,129 @@
   color: rgba(251, 191, 36, 0.7);
 }
 
-/* Responsive footer */
+/* ==========================================
+   v3.13 COLLAPSIBLE SESSION LEADERBOARD
+   ==========================================
+   Toggle button and collapse animation
+   ========================================== */
+
+/* New header structure for Session Leaderboard */
+.session-leaderboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.session-leaderboard-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Toggle collapse button */
+.toggle-collapse-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-collapse-btn:hover {
+  background: rgba(99, 102, 241, 0.4);
+  transform: scale(1.1);
+}
+
+.toggle-collapse-btn .chevron {
+  font-size: 0.9rem;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-collapse-btn .chevron.collapsed {
+  transform: rotate(180deg);
+}
+
+/* Leaderboard content wrapper */
+.leaderboard-content {
+  overflow: hidden;
+  max-height: 200px;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+/* Collapsed state */
+.session-leaderboard-footer.collapsed {
+  padding-bottom: 0.5rem;
+}
+
+.session-leaderboard-footer.collapsed .leaderboard-content {
+  max-height: 0;
+  opacity: 0;
+}
+
+.session-leaderboard-footer.collapsed .session-leaderboard-header {
+  margin-bottom: 0;
+}
+
+/* ==========================================
+   v3.13 RESPONSIVE RIGHT PANEL (Top 25)
+   ==========================================
+   Overlay mode for smaller screens
+   ========================================== */
+
+/* Medium screens: overlay mode */
+@media (max-width: 900px) {
+  .main-content {
+    position: relative;
+  }
+
+  .right-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50;
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .right-panel.visible {
+    width: 400px;
+    min-width: 400px;
+  }
+
+  .left-panel {
+    width: 100%;
+  }
+}
+
+/* Small screens: narrower panel */
+@media (max-width: 600px) {
+  .right-panel.visible {
+    width: 320px;
+    min-width: 280px;
+  }
+
+  .leaderboard-section {
+    padding: 1rem;
+  }
+
+  .section-title {
+    font-size: 0.9rem;
+  }
+}
+
+/* ==========================================
+   v3.13 SESSION LEADERBOARD RESPONSIVE
+   ==========================================
+   Better handling at various screen sizes
+   ========================================== */
+
 @media (max-width: 768px) {
   .session-leaderboard-footer {
     padding: 0.75rem 1rem;
@@ -2215,16 +2346,124 @@
   .points-value {
     font-size: 0.9rem;
   }
-}
 
-@media (max-width: 480px) {
-  .leaderboard-header {
+  .session-leaderboard-header .header-left {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
   }
+}
+
+@media (max-width: 480px) {
+  .session-leaderboard-header {
+    flex-direction: row;
+    align-items: center;
+  }
 
   .leaderboard-card {
     min-width: 140px;
+  }
+
+  .leaderboard-title {
+    font-size: 0.95rem;
+  }
+
+  .leaderboard-subtitle {
+    font-size: 0.7rem;
+  }
+}
+
+/* ==========================================
+   v3.13 HEADER RESPONSIVE IMPROVEMENTS
+   ========================================== */
+
+@media (max-width: 900px) {
+  .header-video-info {
+    min-width: auto;
+    max-width: 50%;
+    padding: 0.5rem 1rem;
+  }
+
+  .header-video-info .video-title {
+    max-width: 200px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Hide video info pill below 800px - no value in cramped header */
+@media (max-width: 800px) {
+  .header-video-info {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .header-brand h1 {
+    font-size: 1.1rem;
+  }
+
+  .toggle-leaderboard-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  .connection-status {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+/* ==========================================
+   v3.13 CHAT SECTION RESPONSIVE
+   ========================================== */
+
+@media (max-width: 600px) {
+  .chat-section {
+    padding: 0.75rem 1rem;
+  }
+
+  .message-item {
+    padding: 8px 10px;
+  }
+
+  .author {
+    font-size: 0.85rem;
+  }
+
+  .text {
+    font-size: 0.85rem;
+  }
+}
+
+/* ==========================================
+   v3.13 TIMER SECTION RESPONSIVE
+   ========================================== */
+
+@media (max-width: 600px) {
+  .timer-section {
+    padding: 1rem;
+  }
+
+  .button-group {
+    gap: 0.5rem;
+  }
+
+  .timer-btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.95rem;
+  }
+
+  .time-value {
+    font-size: 4rem;
+  }
+
+  .countdown {
+    padding: 1rem 2rem;
   }
 }

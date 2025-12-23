@@ -129,7 +129,10 @@ function App() {
   // Show distribution chart when data arrives (v3.9)
   useEffect(() => {
     if (answerDistribution && answerDistribution.total > 0) {
-      setShowDistributionChart(true);
+      setShowDistributionChart((prev) => {
+        if (prev) return prev; // Avoid unnecessary re-renders
+        return true;
+      });
     }
   }, [answerDistribution]);
 
@@ -154,8 +157,16 @@ function App() {
   // Show main UI if: videoId exists AND videoStatus is 'live'
   const showMainUI = videoId && videoStatus === "live";
 
+  // Check if Session Leaderboard should be visible (for CSS class)
+  const hasSessionLeaderboard =
+    sessionLeaderboard && sessionLeaderboard.length > 0;
+
   return (
-    <div className="app-container">
+    <div
+      className={`app-container ${
+        hasSessionLeaderboard ? "has-session-leaderboard" : ""
+      }`}
+    >
       {/* Header with title, toggle, and connection status */}
       <Header
         isConnected={isConnected}

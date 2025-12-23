@@ -645,7 +645,7 @@ async function main() {
     // v3.12.1: Send existing video leaderboard on connect (for page refresh)
     if (currentVideoId) {
       scores
-        .getVideoLeaderboard(currentVideoId, 10)
+        .getVideoLeaderboard(currentVideoId, 100)
         .then((leaderboard) => {
           if (leaderboard && leaderboard.length > 0) {
             // Get questions_asked from videos table
@@ -953,10 +953,10 @@ async function main() {
           // Batch update all user scores
           await scores.batchUpdateScores(currentVideoId, participants);
 
-          // Get top 10 leaderboard
+          // Get top 100 leaderboard
           const leaderboard = await scores.getVideoLeaderboard(
             currentVideoId,
-            10
+            100
           );
 
           // Get questions_asked count

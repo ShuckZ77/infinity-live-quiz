@@ -1,7 +1,7 @@
 /**
- * SessionLeaderboard Component (v3.12)
+ * SessionLeaderboard Component (v3.13)
  *
- * Footer-style leaderboard showing top 10 students by points.
+ * Footer-style leaderboard showing top 100 students by points.
  * Only visible after first quiz completes.
  *
  * Features:
@@ -9,9 +9,10 @@
  * - Avatars with initials
  * - Points display with animation
  * - Responsive layout
+ * - Collapsible toggle (v3.13)
  */
 
-import React from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
 
 // Avatar gradient colors based on username hash
@@ -56,51 +57,71 @@ const getRankBadge = (rank) => {
 };
 
 const SessionLeaderboard = ({ leaderboard = [], questionsAsked = 0 }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   if (!leaderboard || leaderboard.length === 0) {
     return null;
   }
 
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => !prev);
+  };
+
   return (
-    <footer className="session-leaderboard-footer">
-      <div className="leaderboard-header">
-        <span className="leaderboard-title">🏆 Video Leaderboard</span>
-        <span className="leaderboard-subtitle">
-          {questionsAsked > 0 ? `${questionsAsked} questions | ` : ""}+4 pts per
-          correct
-        </span>
+    <footer
+      className={`session-leaderboard-footer ${isCollapsed ? "collapsed" : ""}`}
+    >
+      <div className="session-leaderboard-header">
+        <div className="header-left">
+          <span className="leaderboard-title">🏆 Session Leaderboard</span>
+          <span className="leaderboard-subtitle">
+            {questionsAsked > 0 ? `${questionsAsked} questions | ` : ""}+4 pts
+            per correct
+          </span>
+        </div>
+        <button
+          className="toggle-collapse-btn"
+          onClick={toggleCollapse}
+          title={isCollapsed ? "Expand Leaderboard" : "Collapse Leaderboard"}
+        >
+          <span className={`chevron ${isCollapsed ? "collapsed" : ""}`}>▼</span>
+        </button>
       </div>
-      <div className="leaderboard-grid">
-        {leaderboard.map((user, index) => (
-          <div
-            key={user.username}
-            className={`leaderboard-card ${index < 3 ? "top-three" : ""}`}
-          >
-            <div className="leaderboard-rank">{getRankBadge(index + 1)}</div>
+
+      <div className="leaderboard-content">
+        <div className="leaderboard-grid">
+          {leaderboard.map((user, index) => (
             <div
-              className="leaderboard-avatar"
-              style={{ background: getAvatarGradient(user.username) }}
+              key={user.username}
+              className={`leaderboard-card ${index < 3 ? "top-three" : ""}`}
             >
-              {getInitials(user.username)}
+              <div className="leaderboard-rank">{getRankBadge(index + 1)}</div>
+              <div
+                className="leaderboard-avatar"
+                style={{ background: getAvatarGradient(user.username) }}
+              >
+                {getInitials(user.username)}
+              </div>
+              <div className="leaderboard-info">
+                <span className="leaderboard-username" title={user.username}>
+                  {user.username.length > 12
+                    ? user.username.slice(0, 12) + "..."
+                    : user.username}
+                </span>
+                <span className="leaderboard-stats">
+                  {user.correct_answers}/{user.total_answers}
+                  {user.avg_response_time_ms > 0 && (
+                    <> | ~{(user.avg_response_time_ms / 1000).toFixed(1)}s</>
+                  )}
+                </span>
+              </div>
+              <div className="leaderboard-points">
+                <span className="points-value">{user.total_points}</span>
+                <span className="points-label">pts</span>
+              </div>
             </div>
-            <div className="leaderboard-info">
-              <span className="leaderboard-username" title={user.username}>
-                {user.username.length > 12
-                  ? user.username.slice(0, 12) + "..."
-                  : user.username}
-              </span>
-              <span className="leaderboard-stats">
-                {user.correct_answers}/{user.total_answers}
-                {user.avg_response_time_ms > 0 && (
-                  <> | ~{(user.avg_response_time_ms / 1000).toFixed(1)}s</>
-                )}
-              </span>
-            </div>
-            <div className="leaderboard-points">
-              <span className="points-value">{user.total_points}</span>
-              <span className="points-label">pts</span>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </footer>
   );
@@ -116,6 +137,7 @@ SessionLeaderboard.propTypes = {
       avg_response_time_ms: PropTypes.number,
     })
   ),
+  questionsAsked: PropTypes.number,
 };
 
 export default SessionLeaderboard;

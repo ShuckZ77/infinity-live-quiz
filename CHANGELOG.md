@@ -54,6 +54,7 @@ All notable changes to this project will be documented in this file.
 - `server/database/index.js` - Uses sql-asm.js instead of DuckDB
 - `server/view-db.js` - Updated for sql.js
 - All documentation updated to reflect sql.js
+- **Session Leaderboard**: Renamed from Video Leaderboard, capacity increased to **Top 100** users
 
 ### Why This Change?
 

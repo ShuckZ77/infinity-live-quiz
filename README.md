@@ -103,13 +103,15 @@ A real-time quiz/competition system powered by YouTube Live Chat. Tracks respons
 - **60-Second Refresh** - View count updates periodically
 - **Modern Styling** - Glassmorphism design with animations
 
-### Video Leaderboard (NEW in v3.12)
+### Session Leaderboard (v3.13+)
+
+(Previously "Video Leaderboard")
 
 - **Per-Video Scoring** - Points persist for the same video across sessions
 - **Points System** - +4 pts per correct answer
 - **Question Tracking** - Counts quizzes that ended naturally (not aborted)
 - **Avg Response Time** - Calculated from correct answers only
-- **Footer Display** - Top 10 users with avatars, rank badges, points
+- **Footer Display** - **Top 100** users with avatars, rank badges, points
 - **Persistence** - Leaderboard survives page refresh
 
 ---
