@@ -294,10 +294,8 @@
   gap: 0;
 }
 
-/* Add padding only when Session Leaderboard is visible */
-.has-session-leaderboard .main-content {
-  padding-bottom: 100px;
-}
+/* Session Leaderboard padding now applied to messages-list instead */
+/* See .has-session-leaderboard .messages-list below */
 
 /* ==========================================
    LEFT PANEL (Timer + Chat)
@@ -611,6 +609,10 @@
   gap: 8px;
   padding-right: 8px;
 }
+
+/* Add scroll padding when Session Leaderboard footer is visible */
+/* Removed: Was causing visual gap. Footer is position:fixed so it overlays content naturally. */
+/* .has-session-leaderboard .messages-list { padding-bottom: 120px; } */
 
 /* Message item */
 .message-item {
@@ -2314,6 +2316,32 @@
 
   .section-title {
     font-size: 0.9rem;
+  }
+
+  .left-panel {
+    min-width: 0; /* Allow shrinking on mobile */
+  }
+}
+
+/* Very narrow screens: full-width overlay */
+@media (max-width: 400px) {
+  .right-panel.visible {
+    width: 100%;
+    min-width: 100%;
+    left: 0;
+    right: 0;
+  }
+
+  .left-panel {
+    min-width: 0;
+  }
+
+  .timer-section {
+    padding: 1rem;
+  }
+
+  .chat-section {
+    padding: 0.5rem 1rem;
   }
 }
 
