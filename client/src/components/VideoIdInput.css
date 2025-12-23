@@ -1,0 +1,88 @@
+/* VideoIdInput.css */
+.video-id-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.video-id-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 500px;
+  gap: 1rem;
+}
+
+.input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.video-input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.video-input:focus {
+  border-color: #646cff;
+  box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.2);
+}
+
+.video-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.connect-btn {
+  padding: 0 24px;
+  border-radius: 8px;
+  border: none;
+  background: #646cff;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.connect-btn:hover:not(:disabled) {
+  background: #535bf2;
+}
+
+.connect-btn:disabled {
+  background: #3a3f85;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.connect-btn.live {
+  background: #22c55e;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.9rem;
+  text-align: center;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.status-message.offline {
+  color: #f59e0b;
+  font-size: 0.9rem;
+  text-align: center;
+}

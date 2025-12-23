@@ -1,0 +1,2230 @@
+/**
+ * Infinity Live Quiz - Modern CSS Styles
+ *
+ * DESIGN PRINCIPLES:
+ * 1. Dark theme with vibrant accent colors
+ * 2. Smooth animations and transitions
+ * 3. Responsive fluid layout
+ * 4. Clear visual hierarchy
+ * 5. Glassmorphism effects for modern look
+ *
+ * COLOR PALETTE:
+ * - Background: #0a0a0f (deep dark)
+ * - Surface: #12121a (cards)
+ * - Primary: #6366f1 (indigo)
+ * - Success: #22c55e (green)
+ * - Warning: #f59e0b (amber)
+ * - Error: #ef4444 (red)
+ * - Text: #e0e0e0 (light gray)
+ *
+ * v3.2.1 ADDITIONS:
+ * - .timestamp: New badge for showing time since server start when timer is idle
+ *
+ * v3.2 ADDITIONS:
+ * - Enhanced timer display: BIGGER size, glowing effects, fluid animations
+ * - .timer-glow-container: Glowing container wrapper for timer
+ * - .time-value: Increased to 6rem with dramatic glow effect
+ * - New @keyframes: timerGlow, timerPulse for enhanced visual feedback
+ *
+ * v3.1 ADDITIONS:
+ * - .header-controls: Container for header buttons
+ * - .toggle-leaderboard-btn: Toggle button for leaderboard panel
+ * - .chat-header-row: Row container for chat title and message count
+ * - .message-count: Message counter styling
+ * - .leaderboard-header: Header row for leaderboard with close button
+ * - .close-panel-btn: Close button inside panel
+ */
+
+/* ==========================================
+   RESET & ROOT STYLES
+   ========================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+}
+
+/* ==========================================
+   APP CONTAINER
+   ========================================== */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  color: #e0e0e0;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ==========================================
+   HEADER
+   ========================================== */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(18, 18, 26, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+  z-index: 100;
+}
+
+/* Brand container (Logo + Title) */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+/* Logo Styling */
+.app-logo {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: logoFloat 6s ease-in-out infinite;
+  /* Optional: Add a subtle backing glow if the PNG is transparent */
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+}
+
+.app-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px rgba(99, 102, 241, 0.3));
+  transition: all 0.3s ease;
+}
+
+.header-brand:hover .app-logo img {
+  transform: scale(1.1) rotate(5deg);
+  filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.5));
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientFlow 5s ease infinite;
+}
+
+/* Connection status indicator */
+.connection-status {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.connection-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.connection-status.online {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.connection-status.online::before {
+  background: #22c55e;
+}
+
+.connection-status.offline {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.connection-status.offline::before {
+  background: #ef4444;
+  animation: none;
+}
+
+/* ==========================================
+   v3.11 NEW: HEADER VIDEO INFO
+   ==========================================
+   Displays current video metadata in header
+   Shows: title, channel name, view count
+   Modern glassmorphism pill design with animations
+   ========================================== */
+.header-video-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.18) 0%,
+    rgba(168, 85, 247, 0.18) 100%
+  );
+  border-radius: 50px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  backdrop-filter: blur(10px);
+  min-width: 400px;
+  max-width: 60%;
+  animation: fadeSlideIn 0.4s ease-out;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.15);
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header-video-info .video-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 380px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  flex-shrink: 1;
+}
+
+.header-video-info .channel-name {
+  font-size: 0.85rem;
+  color: #c4b5fd;
+  font-weight: 500;
+  white-space: nowrap;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(167, 139, 250, 0.5);
+  flex-shrink: 0;
+}
+
+.header-video-info .view-count {
+  font-size: 0.85rem;
+  color: #86efac;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.35rem 0.8rem;
+  background: rgba(34, 197, 94, 0.18);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+/* ==========================================
+   v3.1 NEW: HEADER CONTROLS
+   ==========================================
+   Container for header buttons (toggle, status)
+   Allows multiple controls in header right side
+   ========================================== */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* ==========================================
+   v3.1 NEW: LEADERBOARD TOGGLE BUTTON
+   ==========================================
+   Button to show/hide leaderboard panel
+   - Appears only when rankings exist
+   - Changes appearance when panel is visible
+   ========================================== */
+.toggle-leaderboard-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 2px solid #6366f1;
+  border-radius: 8px;
+  background: transparent;
+  color: #6366f1;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.toggle-leaderboard-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Active state when panel is visible */
+.toggle-leaderboard-btn.active {
+  background: #6366f1;
+  color: white;
+}
+
+.toggle-leaderboard-btn.active:hover {
+  background: #5558e3;
+}
+
+/* ==========================================
+   MAIN CONTENT LAYOUT
+   ========================================== */
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ==========================================
+   LEFT PANEL (Timer + Chat)
+   ========================================== */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 400px;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================
+   TIMER SECTION
+   ========================================== */
+.timer-section {
+  padding: 1.5rem 2rem;
+  background: rgba(18, 18, 26, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Timer buttons (idle state) */
+.timer-buttons {
+  animation: fadeIn 0.5s ease;
+}
+
+.timer-label {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 1rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.timer-btn {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.timer-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.timer-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+}
+
+.timer-btn:hover::before {
+  left: 100%;
+}
+
+.timer-btn:active {
+  transform: translateY(-1px);
+}
+
+/* ==========================================
+   v3.2 ENHANCED: TIMER DISPLAY (running state)
+   ==========================================
+   CHANGES:
+   - Added glowing container wrapper
+   - Timer is now MUCH BIGGER (6rem -> responsive)
+   - Added dramatic glow and pulse animations
+   - More attractive gradient colors
+   - Smooth fluid animations
+   ========================================== */
+.timer-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: slideDown 0.5s ease;
+}
+
+/* v3.2 NEW: Glowing container for timer
+   Creates a dramatic glow effect behind the countdown */
+.countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem 3rem;
+  position: relative;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  animation: timerContainerGlow 2s ease-in-out infinite;
+}
+
+/* v3.2 NEW: Glow effect behind countdown */
+.countdown::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #f59e0b, #ef4444, #ec4899, #f59e0b);
+  background-size: 300% 300%;
+  z-index: -1;
+  animation: timerBorderGlow 3s ease infinite;
+  filter: blur(8px);
+  opacity: 0.7;
+}
+
+/* v3.2 NEW: Inner border glow */
+.countdown::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  border: 2px solid rgba(245, 158, 11, 0.5);
+  animation: timerInnerGlow 1s ease-in-out infinite;
+}
+
+/* v3.2 ENHANCED: Much bigger, more dramatic timer value */
+.time-value {
+  font-size: 6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b, #ef4444, #ec4899);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: timerPulse 1s ease-in-out infinite,
+    timerGradientShift 4s ease infinite;
+  text-shadow: 0 0 40px rgba(245, 158, 11, 0.5);
+  filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.4));
+  letter-spacing: -2px;
+}
+
+/* v3.2 ENHANCED: Larger label with better styling */
+.time-label {
+  font-size: 1.1rem;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  opacity: 0.9;
+  animation: timeLabelPulse 2s ease-in-out infinite;
+}
+
+/* Progress bar */
+.progress-bar {
+  width: 100%;
+  max-width: 400px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+  border-radius: 4px;
+  transition: width 1s linear;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5));
+  animation: shimmer 1s infinite;
+}
+
+.stop-btn {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stop-btn:hover {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Timer ended state */
+.timer-ended {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 0.5s ease;
+}
+
+.ended-label {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #22c55e;
+  margin-bottom: 1rem;
+  animation: bounceIn 0.5s ease;
+}
+
+.reset-btn {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.4);
+}
+
+/* ==========================================
+   CHAT SECTION
+   ========================================== */
+.chat-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 2rem;
+  overflow: hidden;
+  transition: opacity 0.3s ease;
+}
+
+.chat-section.chat-frozen {
+  opacity: 0.7;
+}
+
+/* ==========================================
+   v3.1 NEW: CHAT HEADER ROW
+   ==========================================
+   Row container for chat title and message count
+   Provides better layout and information display
+   ========================================== */
+.chat-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* ==========================================
+   v3.1 NEW: MESSAGE COUNT
+   ==========================================
+   Shows number of messages received
+   - Helpful feedback for users
+   - Updates in real-time as messages arrive
+   ========================================== */
+.message-count {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #888;
+  /* v3.1: Removed margin-bottom since parent containers now handle spacing */
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.messages-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 8px;
+}
+
+/* Message item */
+.message-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  animation: slideIn 0.3s ease;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.message-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.message-item.duplicate {
+  border-left-color: #f59e0b;
+  opacity: 0.7;
+}
+
+/* Response time badge (shown during quiz) */
+.response-time {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ==========================================
+   v3.2.1 NEW: TIMESTAMP BADGE
+   ==========================================
+   Shown when timer is NOT active (idle state)
+   - Displays time since server start
+   - Different color to distinguish from response time
+   - Helps users see when messages arrived
+   ========================================== */
+.timestamp {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Duplicate badge */
+.duplicate-badge {
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-radius: 4px;
+}
+
+.author {
+  font-weight: 600;
+  color: #6366f1;
+  white-space: nowrap;
+}
+
+.text {
+  color: #ccc;
+  word-break: break-word;
+  flex: 1;
+}
+
+.empty-state {
+  color: #555;
+  text-align: center;
+  padding: 3rem 1rem;
+  font-style: italic;
+}
+
+/* ==========================================
+   RIGHT PANEL (Leaderboard)
+   ========================================== */
+.right-panel {
+  width: 0;
+  overflow: hidden;
+  background: rgba(18, 18, 26, 0.8);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.right-panel.visible {
+  width: 500px;
+  min-width: 500px;
+}
+
+.leaderboard-section {
+  padding: 1.5rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================
+   v3.1 NEW: LEADERBOARD HEADER
+   ==========================================
+   Row container for leaderboard title and close button
+   Allows closing the panel from within
+   ========================================== */
+.leaderboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* ==========================================
+   v3.1 NEW: CLOSE PANEL BUTTON
+   ==========================================
+   Alternative way to hide the leaderboard panel
+   - Placed inside the panel for easy access
+   - Smooth hover effects
+   ========================================== */
+.close-panel-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #888;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-panel-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  transform: scale(1.1);
+}
+
+.leaderboard {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 8px;
+}
+
+/* Leaderboard item */
+.leaderboard-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  animation: slideInRight 0.5s ease backwards;
+  transition: all 0.3s ease;
+}
+
+.leaderboard-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(-4px);
+}
+
+/* Special styling for top 3 */
+.leaderboard-item.rank-1 {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 215, 0, 0.1),
+    rgba(255, 215, 0, 0.05)
+  );
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.leaderboard-item.rank-2 {
+  background: linear-gradient(
+    135deg,
+    rgba(192, 192, 192, 0.1),
+    rgba(192, 192, 192, 0.05)
+  );
+  border: 1px solid rgba(192, 192, 192, 0.3);
+}
+
+.leaderboard-item.rank-3 {
+  background: linear-gradient(
+    135deg,
+    rgba(205, 127, 50, 0.1),
+    rgba(205, 127, 50, 0.05)
+  );
+  border: 1px solid rgba(205, 127, 50, 0.3);
+}
+
+/* Rank badge */
+.rank-badge {
+  min-width: 50px;
+  padding: 8px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.rank-badge.rank-1 {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  color: #1a1a2e;
+  animation: goldGlow 2s ease infinite;
+}
+
+.rank-badge.rank-2 {
+  background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+  color: #1a1a2e;
+}
+
+.rank-badge.rank-3 {
+  background: linear-gradient(135deg, #cd7f32, #b8722d);
+  color: #1a1a2e;
+}
+
+/* User info */
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.username {
+  font-weight: 600;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #22c55e;
+  white-space: nowrap;
+}
+
+/* Bar chart visualization */
+.bar-container {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.bar {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 4px;
+  animation: barGrow 0.8s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+/* Top 3 special bar colors */
+.leaderboard-item.rank-1 .bar {
+  background: linear-gradient(90deg, #ffd700, #ffb700);
+}
+
+.leaderboard-item.rank-2 .bar {
+  background: linear-gradient(90deg, #c0c0c0, #a8a8a8);
+}
+
+.leaderboard-item.rank-3 .bar {
+  background: linear-gradient(90deg, #cd7f32, #b8722d);
+}
+
+/* User meta info */
+.user-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.message-preview {
+  color: #666;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.comment-count {
+  color: #f59e0b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ==========================================
+   ANIMATIONS
+   ========================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* v3.2 ENHANCED: More dramatic timer pulse animation */
+@keyframes timerPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.4));
+  }
+  50% {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 40px rgba(239, 68, 68, 0.7));
+  }
+}
+
+/* v3.2 NEW: Gradient shift animation for timer text */
+@keyframes timerGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* v3.2 NEW: Glow animation for timer container */
+@keyframes timerContainerGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.2),
+      inset 0 0 20px rgba(245, 158, 11, 0.05);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(239, 68, 68, 0.3),
+      inset 0 0 30px rgba(239, 68, 68, 0.1);
+  }
+}
+
+/* v3.2 NEW: Border glow animation */
+@keyframes timerBorderGlow {
+  0% {
+    background-position: 0% 50%;
+    opacity: 0.5;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.9;
+  }
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.5;
+  }
+}
+
+/* v3.2 NEW: Inner border pulse */
+@keyframes timerInnerGlow {
+  0%,
+  100% {
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+}
+
+/* v3.2 NEW: Time label subtle pulse */
+@keyframes timeLabelPulse {
+  0%,
+  100% {
+    opacity: 0.8;
+    letter-spacing: 4px;
+  }
+  50% {
+    opacity: 1;
+    letter-spacing: 5px;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes barGrow {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes goldGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+}
+
+/* ==========================================
+   SCROLLBAR STYLES
+   ========================================== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* ==========================================
+   v3.7 NEW: QUESTION TYPE SELECTOR
+   ==========================================
+   Toggle between MCQ and Fill-in-the-blanks
+   ========================================== */
+.question-type-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.question-type-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.05);
+  color: #888;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.question-type-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.1);
+  color: #a5b4fc;
+}
+
+.question-type-btn.active {
+  border-color: #6366f1;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.2),
+    rgba(139, 92, 246, 0.2)
+  );
+  color: #a5b4fc;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+.question-type-btn.active::before {
+  content: "✓ ";
+}
+
+/* ==========================================
+   v3.7 NEW: COUNTDOWN OVERLAY
+   ==========================================
+   Full-screen animated countdown before timer starts
+   5, 4, 3, 2, 1, GO!
+   ========================================== */
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: all;
+}
+
+.countdown-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 15, 0.9);
+  backdrop-filter: blur(20px);
+}
+
+/* Animated expanding rings */
+.countdown-ring {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  border: 3px solid;
+  animation: countdownRingExpand 1s ease-out infinite;
+}
+
+.countdown-ring-1 {
+  animation-delay: 0s;
+}
+
+.countdown-ring-2 {
+  animation-delay: 0.2s;
+}
+
+.countdown-ring-3 {
+  animation-delay: 0.4s;
+}
+
+/* Main countdown number */
+.countdown-number {
+  position: relative;
+  z-index: 10;
+  font-size: 12rem;
+  font-weight: 900;
+  line-height: 1;
+  animation: countdownNumberEnter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.countdown-number.go {
+  font-size: 8rem;
+  letter-spacing: 10px;
+}
+
+.countdown-number.animating {
+  animation: countdownNumberEnter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Cancel hint */
+.countdown-hint {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.4);
+  z-index: 10;
+}
+
+/* Countdown animations */
+@keyframes countdownNumberEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-10deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2) rotate(5deg);
+  }
+  70% {
+    transform: scale(0.95) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes countdownRingExpand {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* ==========================================
+   v3.7 NEW: ANSWER SELECTION MODAL
+   ==========================================
+   Popup for selecting correct answer after timer ends
+   Supports MCQ (A/B/C/D) and Fill-in-blanks (text input)
+   ========================================== */
+.answer-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.3s ease;
+}
+
+.answer-modal {
+  width: 90%;
+  max-width: 500px;
+  background: linear-gradient(
+    135deg,
+    rgba(18, 18, 26, 0.95),
+    rgba(26, 26, 46, 0.95)
+  );
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5), 0 0 40px rgba(99, 102, 241, 0.1);
+  animation: modalSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(50px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.answer-modal-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.answer-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.answer-modal-subtitle {
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.answer-modal-content {
+  margin-bottom: 2rem;
+}
+
+/* MCQ Options Grid - Modern Pill Design */
+.mcq-options {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.mcq-option {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  border: 2px solid rgba(99, 102, 241, 0.4);
+  border-radius: 50%;
+  background: linear-gradient(
+    145deg,
+    rgba(99, 102, 241, 0.1),
+    rgba(139, 92, 246, 0.05)
+  );
+  color: #a5b4fc;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.15);
+}
+
+.mcq-option:hover {
+  border-color: #818cf8;
+  background: linear-gradient(
+    145deg,
+    rgba(99, 102, 241, 0.25),
+    rgba(139, 92, 246, 0.15)
+  );
+  transform: translateY(-6px) scale(1.08);
+  box-shadow: 0 12px 35px rgba(99, 102, 241, 0.35);
+}
+
+.mcq-option.selected {
+  border-color: #22c55e;
+  background: linear-gradient(
+    145deg,
+    rgba(34, 197, 94, 0.25),
+    rgba(22, 163, 74, 0.15)
+  );
+  color: #4ade80;
+  box-shadow: 0 0 25px rgba(34, 197, 94, 0.4),
+    0 8px 25px rgba(34, 197, 94, 0.25);
+  transform: scale(1.1);
+}
+
+.mcq-option.selected .mcq-option-letter {
+  animation: optionPulse 0.5s ease;
+}
+
+@keyframes optionPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.mcq-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Fill-in-blanks Input */
+.fill-blank-input {
+  width: 100%;
+}
+
+.fill-blank-field {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  font-size: 1.2rem;
+  font-family: inherit;
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #e0e0e0;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.fill-blank-field::placeholder {
+  color: #666;
+}
+
+.fill-blank-field:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+/* Modal Actions */
+.answer-modal-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.answer-modal-cancel {
+  flex: 1;
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.answer-modal-cancel:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.answer-modal-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.answer-modal-submit {
+  flex: 2;
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.3);
+  color: #888;
+  cursor: not-allowed;
+  transition: all 0.3s ease;
+}
+
+.answer-modal-submit.valid {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  cursor: pointer;
+}
+
+.answer-modal-submit.valid:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.4);
+}
+
+.answer-modal-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ==========================================
+   RESPONSIVE DESIGN
+   ========================================== */
+@media (max-width: 1200px) {
+  .right-panel.visible {
+    width: 400px;
+    min-width: 400px;
+  }
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .left-panel {
+    min-width: 100%;
+    max-height: 50vh;
+  }
+
+  .right-panel.visible {
+    width: 100%;
+    min-width: 100%;
+    max-height: 50vh;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* v3.2: Responsive timer sizing */
+  .time-value {
+    font-size: 4.5rem;
+  }
+
+  .countdown {
+    padding: 1rem 2rem;
+  }
+
+  .button-group {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 1rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .timer-section {
+    padding: 1rem;
+  }
+
+  .chat-section {
+    padding: 1rem;
+  }
+
+  .timer-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  /* v3.2: Responsive timer sizing for mobile */
+  .time-value {
+    font-size: 3.5rem;
+    letter-spacing: -1px;
+  }
+
+  .countdown {
+    padding: 0.75rem 1.5rem;
+  }
+
+  .time-label {
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+  }
+
+  .leaderboard-section {
+    padding: 1rem;
+  }
+}
+
+/* ============================================
+   ANSWER DISTRIBUTION CHART (v3.9.1 - Modern Design)
+   ============================================ */
+
+.distribution-chart-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.distribution-chart-modal {
+  background: linear-gradient(
+    165deg,
+    rgba(26, 26, 46, 0.98) 0%,
+    rgba(22, 22, 42, 0.98) 50%,
+    rgba(15, 15, 26, 0.98) 100%
+  );
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 24px;
+  padding: 0;
+  width: fit-content;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: visible;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: chartModalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes chartModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.12),
+    rgba(59, 130, 246, 0.08)
+  );
+  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.chart-title-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chart-icon {
+  font-size: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.chart-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.chart-close-btn {
+  background: rgba(239, 68, 68, 0.2);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  color: #f87171;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chart-close-btn:hover {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: rgba(239, 68, 68, 0.7);
+  color: #fff;
+  transform: rotate(90deg) scale(1.1);
+}
+
+.chart-content {
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+}
+
+.no-responses {
+  color: #71717a;
+  padding: 3rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.no-responses-icon {
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
+.no-responses p {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.pie-chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  width: 320px;
+  height: 320px;
+  animation: chartScaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes chartScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.pie-chart {
+  filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.4));
+}
+
+.pie-segment {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  animation: segmentIn 0.5s ease-out backwards;
+}
+
+@keyframes segmentIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.pie-segment:hover {
+  filter: brightness(1.25) drop-shadow(0 0 15px currentColor);
+  transform: scale(1.03);
+  transform-origin: center;
+}
+
+.center-total {
+  fill: #fff;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.center-label {
+  fill: #71717a;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 500;
+}
+
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 320px;
+  flex-shrink: 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.3s ease;
+  animation: legendSlideIn 0.4s ease-out backwards;
+}
+
+@keyframes legendSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.legend-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(4px);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.legend-item.correct {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.12),
+    rgba(16, 185, 129, 0.06)
+  );
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+}
+
+.legend-option-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.legend-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.legend-count {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #e4e4e7;
+}
+
+.correct-badge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.625rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.legend-progress-container {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.legend-progress-bar {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: progressGrow 0.8s ease-out 0.5s backwards;
+}
+
+@keyframes progressGrow {
+  from {
+    width: 0 !important;
+  }
+}
+
+.legend-percentage {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #a1a1aa;
+}
+
+.chart-footer {
+  padding: 1.25rem 2rem 1.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chart-continue-btn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.chart-continue-btn:hover {
+  background: linear-gradient(135deg, #a78bfa, #818cf8);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgba(139, 92, 246, 0.4);
+}
+
+.chart-continue-btn:active {
+  transform: translateY(-1px);
+}
+
+.chart-continue-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.chart-continue-btn:hover svg {
+  transform: translateX(4px);
+}
+
+/* Responsive adjustments for chart */
+@media (max-width: 540px) {
+  .distribution-chart-modal {
+    width: 95%;
+    max-width: none;
+    margin: 1rem;
+    border-radius: 20px;
+  }
+
+  .chart-header {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .chart-content {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .chart-title {
+    font-size: 1.25rem;
+  }
+
+  .chart-icon {
+    font-size: 1.25rem;
+  }
+
+  .legend-option-badge {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    border-radius: 10px;
+  }
+
+  .legend-item {
+    padding: 0.875rem 1rem;
+  }
+
+  .pie-chart-container svg {
+    width: 240px;
+    height: 240px;
+  }
+}
+
+/* ==========================================
+   v3.12 SESSION LEADERBOARD FOOTER
+   ==========================================
+   Fixed footer showing top 10 students by points.
+   Modern glassmorphism design with avatars.
+   ========================================== */
+
+.session-leaderboard-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 18, 26, 0.95) 0%,
+    rgba(10, 10, 15, 0.98) 100%
+  );
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 1rem 2rem;
+  z-index: 200;
+  animation: slideUpFooter 0.5s ease-out;
+}
+
+@keyframes slideUpFooter {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.leaderboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.leaderboard-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.leaderboard-subtitle {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+
+.leaderboard-grid {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+}
+
+.leaderboard-grid::-webkit-scrollbar {
+  height: 4px;
+}
+
+.leaderboard-grid::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+}
+
+.leaderboard-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  background: rgba(30, 30, 40, 0.6);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 180px;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.leaderboard-card:hover {
+  background: rgba(40, 40, 55, 0.8);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
+}
+
+.leaderboard-card.top-three {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.08) 0%,
+    rgba(30, 30, 40, 0.6) 100%
+  );
+}
+
+.leaderboard-rank {
+  font-size: 1rem;
+  min-width: 28px;
+  text-align: center;
+}
+
+.leaderboard-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.leaderboard-username {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leaderboard-stats {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.leaderboard-points {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.4rem 0.6rem;
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.15),
+    rgba(16, 185, 129, 0.15)
+  );
+  border-radius: 10px;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.points-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #22c55e;
+  line-height: 1;
+}
+
+.points-label {
+  font-size: 0.6rem;
+  color: rgba(34, 197, 94, 0.7);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Top 3 special styling */
+.leaderboard-card.top-three .points-value {
+  color: #fbbf24;
+}
+
+.leaderboard-card.top-three .leaderboard-points {
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.15),
+    rgba(245, 158, 11, 0.15)
+  );
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.leaderboard-card.top-three .points-label {
+  color: rgba(251, 191, 36, 0.7);
+}
+
+/* Responsive footer */
+@media (max-width: 768px) {
+  .session-leaderboard-footer {
+    padding: 0.75rem 1rem;
+  }
+
+  .leaderboard-card {
+    min-width: 160px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .leaderboard-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.7rem;
+  }
+
+  .leaderboard-username {
+    font-size: 0.8rem;
+  }
+
+  .points-value {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .leaderboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .leaderboard-card {
+    min-width: 140px;
+  }
+}

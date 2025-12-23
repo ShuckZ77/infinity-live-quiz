@@ -1,0 +1,40 @@
+{
+  "name": "infinity-live-quiz",
+  "version": "3.13.0",
+  "description": "Infinity Live Quiz - Portable Web App",
+  "private": true,
+  "main": "server/index.js",
+  "scripts": {
+    "predev": "node scripts/cleanup.js",
+    "start": "cd server && npm start",
+    "dev": "cd server && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "build:client": "cd client && npm run build",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dist": "npm run build && node scripts/create-portable.js",
+    "debug": "cd server && npm run debug",
+    "db": "cd server && npm run db"
+  },
+  "keywords": [
+    "youtube",
+    "live-chat",
+    "quiz",
+    "competition",
+    "socket.io",
+    "react",
+    "desktop"
+  ],
+  "author": "Wizklub",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.1",
+    "sql.js": "^1.13.0",
+    "youtubei.js": "^16.0.1"
+  }
+}
