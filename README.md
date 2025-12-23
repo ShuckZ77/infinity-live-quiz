@@ -2,7 +2,7 @@
 
 A real-time quiz/competition system powered by YouTube Live Chat. Tracks response times, detects duplicates, and generates leaderboards. Built with Node.js, React, and Socket.io.
 
-![Version](https://img.shields.io/badge/version-3.12.2-blue)
+![Version](https://img.shields.io/badge/version-4.0.0-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green)
 ![License](https://img.shields.io/badge/license-ISC-yellow)
 

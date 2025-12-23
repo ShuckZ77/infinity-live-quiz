@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v4.0.0] - 2025-12-23
+
+### Summary
+
+**Official v4 Release** of **Infinity Live Quiz**. This is a major version bump consolidating all v3.x improvements.
+
+---
+
+### Highlights
+
+- **Rebranded**: Now called **Infinity Live Quiz**
+- **Session Leaderboard**: Displays **Top 100** users (upgraded from Top 10)
+- **Portable Web App**: No Electron, just extract and run
+- **sql.js Database**: Cross-platform SQLite, no native modules
+- **Responsive UI**: Better support for narrow screens
+
+---
+
 ## [v3.13.0] - 2025-12-23
 
 ### Summary
