@@ -47,3 +47,8 @@ server/data/quiz.duckdb
 
 # App specific
 
+
+# Documentation cleanup for release
+*.md
+*.txt
+!README_GITHUB.md
