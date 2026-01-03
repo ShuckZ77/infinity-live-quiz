@@ -1,4 +1,4 @@
-# Infinity Live Quiz
+<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/f7d91288-0b82-482d-b23e-a12191cd65c4" /># Infinity Live Quiz
 
 **Version 4.0.0**
 
@@ -63,3 +63,15 @@ A powerful, portable, and real-time quiz system powered by YouTube Live Chat. En
 ## 📄 License
 
 ISC License
+
+
+<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/3fb87e21-98b0-4478-9a2b-4cdfba155b07" />
+<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/f7ac2326-912e-4142-af1e-c79562dc8ff7" />
+<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/994beacd-ab2f-45cd-b599-83264dac29b3" />
+<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/c9e04610-bdf3-41b7-8589-ba3cabf4fa91" />
+<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/5cf2dca2-eeb3-40b7-8eba-f36d5c323631" />
+
+
+
+
+
