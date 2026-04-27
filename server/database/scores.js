@@ -115,7 +115,12 @@ async function getVideoLeaderboard(videoId, limit = 10) {
          END as avg_response_time_ms
        FROM video_scores
        WHERE video_id = ?
-       ORDER BY total_points DESC, correct_answers DESC
+       -- Match Top 25 ties: points first, then fastest average correct time.
+       ORDER BY
+         total_points DESC,
+         avg_response_time_ms ASC,
+         correct_answers DESC,
+         username ASC
        LIMIT ?`,
       [videoId, limit]
     );

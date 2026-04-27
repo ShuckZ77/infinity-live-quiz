@@ -35,6 +35,11 @@ async function upsertVideo(videoId, metadata) {
     live_start_timestamp = null,
     view_count = 0,
   } = metadata;
+  // sql.js binds primitive values reliably; store stream dates as ISO strings.
+  const liveStartValue =
+    live_start_timestamp instanceof Date
+      ? live_start_timestamp.toISOString()
+      : live_start_timestamp;
 
   try {
     // Check if video exists
@@ -56,7 +61,7 @@ async function upsertVideo(videoId, metadata) {
           channel_name,
           title,
           thumbnail_url,
-          live_start_timestamp,
+          liveStartValue,
           view_count,
         ]
       );
@@ -82,7 +87,7 @@ async function upsertVideo(videoId, metadata) {
           channel_name,
           title,
           thumbnail_url,
-          live_start_timestamp,
+          liveStartValue,
           approxViews,
           videoId,
         ]
@@ -92,7 +97,7 @@ async function upsertVideo(videoId, metadata) {
   } catch (error) {
     console.error(
       `[Database] Error upserting video ${videoId}:`,
-      error.message
+      error?.message || error
     );
   }
 }

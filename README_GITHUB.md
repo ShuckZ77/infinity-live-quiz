@@ -2,11 +2,10 @@
 
 **Version 4.0.0**
 
-A powerful, portable, and real-time quiz system powered by YouTube Live Chat. Engage your audience with interactive quizzes, leaderboards, and instant feedback.
+A real-time local quiz system powered by YouTube Live Chat. Engage your audience with interactive quizzes, leaderboards, and instant feedback.
 
 ## 🚀 Features
 
-- **Portable Web App**: No installation required. Runs on Windows and macOS.
 - **Real-time Integration**: Connects directly to YouTube Live Chat.
 - **Session Leaderboard (Top 100)**: Displays top 100 participants with avatars and ranks.
 - **Persistent Scoring**: Tracks scores across multiple quiz sessions for the same video.
@@ -21,24 +20,26 @@ A powerful, portable, and real-time quiz system powered by YouTube Live Chat. En
 
 - **Node.js**: You must have Node.js installed on your computer. [Download here](https://nodejs.org/).
 
-### Installation
+### Local Installation
 
-1.  **Download** the `infinity-live-quiz-portable.zip` file.
-2.  **Extract** the ZIP file to a folder on your computer.
+1.  Open a terminal in the project folder.
+2.  Install dependencies:
+    ```bash
+    npm run install:all
+    ```
+    This project intentionally installs without lockfiles so each new machine resolves the newest matching npm packages.
+3.  Build the frontend:
+    ```bash
+    npm run build
+    ```
 
 ### Running the App
 
-**For Windows:**
+```bash
+npm start
+```
 
-1.  Open the extracted folder.
-2.  Double-click `start-windows.bat`.
-3.  The console will open, and shortly after, your default browser will launch at `http://localhost:3001`.
-
-**For macOS:**
-
-1.  Open the extracted folder.
-2.  Right-click `start-mac.command` and select **Open** (you may need to confirm opening it the first time due to security settings).
-3.  The terminal will open, and your browser will launch automatically.
+Then open `http://localhost:3001` in your browser.
 
 ### Running a Quiz
 
@@ -70,8 +71,6 @@ ISC License
 <img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/994beacd-ab2f-45cd-b599-83264dac29b3" />
 <img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/c9e04610-bdf3-41b7-8589-ba3cabf4fa91" />
 <img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/5cf2dca2-eeb3-40b7-8eba-f36d5c323631" />
-
-
 
 
 

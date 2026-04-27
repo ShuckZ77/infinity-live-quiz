@@ -4,6 +4,7 @@
  * Displays timer controls based on session status:
  * - IDLE: Question type selector + Timer duration selection buttons
  * - RUNNING: Countdown display with progress bar
+ * - BUFFERING: Smooth 3-second grace-period animation
  * - ENDED: Reset button
  *
  * PROPS:
@@ -104,6 +105,15 @@ TimerDisplay.propTypes = {
   onStopTimer: PropTypes.func.isRequired,
 };
 
+// Buffering state: short animation while server accepts late chat answers.
+const TimerBuffering = () => (
+  <div className="timer-buffering">
+    <div className="buffer-ring" aria-hidden="true" />
+    <p className="buffer-title">Collecting final answers</p>
+    <p className="buffer-copy">Including responses from the 3-second buffer</p>
+  </div>
+);
+
 // Ended state: Reset button
 const TimerEnded = ({ onReset }) => (
   <div className="timer-ended">
@@ -146,6 +156,8 @@ export const TimerSection = ({
           onStopTimer={onStopTimer}
         />
       )}
+
+      {sessionStatus === SESSION_STATUS.BUFFERING && <TimerBuffering />}
 
       {sessionStatus === SESSION_STATUS.ENDED && (
         <TimerEnded onReset={onReset} />

@@ -22,6 +22,26 @@
 
 const { query, run } = require("./index");
 
+const TIMER_COUNT_COLUMNS = {
+  15: "timer_count_15s",
+  30: "timer_count_30s",
+  45: "timer_count_45s",
+  60: "timer_count_60s",
+  90: "timer_count_90s",
+  120: "timer_count_120s",
+  180: "timer_count_180s",
+};
+
+async function ensureTimerCountColumn(column) {
+  const columns = await query(`PRAGMA table_info(sessions)`);
+  const hasColumn = columns.some((row) => row.name === column);
+
+  if (!hasColumn) {
+    // Existing local DBs need this lightweight migration for new timer durations.
+    await run(`ALTER TABLE sessions ADD COLUMN ${column} INTEGER DEFAULT 0`);
+  }
+}
+
 /**
  * Create a new session for a YouTube video
  *
@@ -107,22 +127,17 @@ async function endSession(id) {
  * Increment timer count for a specific duration
  *
  * @param {number} sessionId - Session ID
- * @param {number} duration - Timer duration (30, 60, 120, or 180)
+ * @param {number} duration - Timer duration in seconds
  * @returns {Promise<void>}
  */
 async function incrementTimerCount(sessionId, duration) {
-  const columnMap = {
-    30: "timer_count_30s",
-    60: "timer_count_60s",
-    120: "timer_count_120s",
-    180: "timer_count_180s",
-  };
-
-  const column = columnMap[duration];
+  const column = TIMER_COUNT_COLUMNS[duration];
   if (!column) {
     console.warn(`[Database] Unknown timer duration: ${duration}`);
     return;
   }
+
+  await ensureTimerCountColumn(column);
 
   await run(
     `UPDATE sessions SET ${column} = ${column} + 1, total_timer_runs = total_timer_runs + 1 WHERE id = ?`,
@@ -226,10 +241,19 @@ async function getSessionUsers(sessionId) {
  * @returns {Promise<Object>} Timer usage stats
  */
 async function getTimerStats() {
+  await Promise.all(
+    Object.values(TIMER_COUNT_COLUMNS).map((column) =>
+      ensureTimerCountColumn(column)
+    )
+  );
+
   const rows = await query(`
     SELECT
+      SUM(timer_count_15s) as total_15s,
       SUM(timer_count_30s) as total_30s,
+      SUM(timer_count_45s) as total_45s,
       SUM(timer_count_60s) as total_60s,
+      SUM(timer_count_90s) as total_90s,
       SUM(timer_count_120s) as total_120s,
       SUM(timer_count_180s) as total_180s,
       SUM(total_timer_runs) as total_runs,
@@ -239,8 +263,11 @@ async function getTimerStats() {
   const stats = rows[0] || {};
   // Convert BigInt to Number for JSON serialization
   return {
+    total_15s: Number(stats.total_15s || 0),
     total_30s: Number(stats.total_30s || 0),
+    total_45s: Number(stats.total_45s || 0),
     total_60s: Number(stats.total_60s || 0),
+    total_90s: Number(stats.total_90s || 0),
     total_120s: Number(stats.total_120s || 0),
     total_180s: Number(stats.total_180s || 0),
     total_runs: Number(stats.total_runs || 0),

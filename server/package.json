@@ -4,7 +4,7 @@
   "description": "Backend server for Infinity Live Quiz",
   "main": "index.js",
   "scripts": {
-    "predev": "rm -f data/quiz.db-journal 2>/dev/null; exit 0",
+    "predev": "node ../scripts/cleanup.js",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "debug": "node debug_props.js",
@@ -20,12 +20,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "express": "^5.2.1",
-    "socket.io": "^4.8.1",
-    "sql.js": "^1.12.0",
-    "youtubei.js": "^16.0.1"
+    "express": "*",
+    "socket.io": "*",
+    "sql.js": "*",
+    "youtubei.js": "*"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "nodemon": "*"
   }
 }

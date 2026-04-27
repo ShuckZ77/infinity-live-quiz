@@ -38,8 +38,11 @@ CREATE TABLE IF NOT EXISTS sessions (
     video_id TEXT NOT NULL,
     started_at TEXT DEFAULT (datetime('now')),
     ended_at TEXT,
+    timer_count_15s INTEGER DEFAULT 0,
     timer_count_30s INTEGER DEFAULT 0,
+    timer_count_45s INTEGER DEFAULT 0,
     timer_count_60s INTEGER DEFAULT 0,
+    timer_count_90s INTEGER DEFAULT 0,
     timer_count_120s INTEGER DEFAULT 0,
     timer_count_180s INTEGER DEFAULT 0,
     total_timer_runs INTEGER DEFAULT 0

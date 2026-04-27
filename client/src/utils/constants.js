@@ -5,13 +5,14 @@
  * Makes it easy to modify settings without hunting through code.
  */
 
-// Timer duration options (in seconds)
-export const TIMER_DURATIONS = [30, 60, 120, 180];
+// Timer duration options shown in the host controls.
+export const TIMER_DURATIONS = [15, 30, 45, 60, 90, 120, 180];
 
 // Session status values
 export const SESSION_STATUS = {
   IDLE: 'idle',
   RUNNING: 'running',
+  BUFFERING: 'buffering',
   ENDED: 'ended',
 };
 

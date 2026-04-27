@@ -36,20 +36,46 @@ const DB_PATH = path.join(DATA_DIR, "quiz.db");
 // sql.js database instance
 let db = null;
 let saveInterval = null;
+let saveTimer = null;
+let isDirty = false;
+
+const SAVE_DEBOUNCE_MS = 2000;
 
 /**
  * Save database to disk
  */
 function saveDatabase() {
-  if (db) {
-    try {
-      const data = db.export();
-      const buffer = Buffer.from(data);
-      fs.writeFileSync(DB_PATH, buffer);
-    } catch (err) {
-      console.error("[Database] Error saving:", err.message);
-    }
+  if (!db || !isDirty) {
+    return;
   }
+
+  try {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    const tempPath = `${DB_PATH}.tmp`;
+
+    fs.writeFileSync(tempPath, buffer);
+    fs.renameSync(tempPath, DB_PATH);
+    isDirty = false;
+  } catch (err) {
+    console.error("[Database] Error saving:", err.message);
+  }
+}
+
+/**
+ * Queue a disk save instead of exporting the whole DB on every write.
+ */
+function scheduleSave() {
+  isDirty = true;
+
+  if (saveTimer) {
+    return;
+  }
+
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    saveDatabase();
+  }, SAVE_DEBOUNCE_MS);
 }
 
 /**
@@ -113,7 +139,7 @@ async function initDatabase() {
     }
 
     // Save database after schema init
-    saveDatabase();
+    scheduleSave();
 
     // Auto-save every 30 seconds
     saveInterval = setInterval(saveDatabase, 30000);
@@ -172,8 +198,7 @@ function run(sql, params = []) {
 
     try {
       db.run(sql, params);
-      // Save after each write operation
-      saveDatabase();
+      scheduleSave();
       resolve();
     } catch (err) {
       reject(err);
@@ -191,6 +216,10 @@ function closeDatabase() {
     if (saveInterval) {
       clearInterval(saveInterval);
       saveInterval = null;
+    }
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
     }
     if (db) {
       saveDatabase();

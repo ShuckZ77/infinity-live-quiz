@@ -11,7 +11,12 @@ const path = require("path");
 
 const PORT = 3001;
 const DATA_DIR = path.join(__dirname, "../server/data");
-const WAL_FILE = path.join(DATA_DIR, "quiz.duckdb.wal");
+const STALE_DB_FILES = [
+  "quiz.db-wal",
+  "quiz.db-shm",
+  "quiz.db-journal",
+  "quiz.duckdb.wal",
+].map((file) => path.join(DATA_DIR, file));
 
 console.log("[Cleanup] Starting...");
 
@@ -52,14 +57,16 @@ try {
   console.log("[Cleanup] Port cleanup skipped:", err.message);
 }
 
-// 2. Remove stale WAL file
+// 2. Remove stale database sidecar files
 try {
-  if (fs.existsSync(WAL_FILE)) {
-    fs.unlinkSync(WAL_FILE);
-    console.log("[Cleanup] Removed stale WAL file");
+  for (const file of STALE_DB_FILES) {
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+      console.log(`[Cleanup] Removed stale database file: ${path.basename(file)}`);
+    }
   }
 } catch (err) {
-  console.log("[Cleanup] WAL cleanup skipped:", err.message);
+  console.log("[Cleanup] Database sidecar cleanup skipped:", err.message);
 }
 
 console.log("[Cleanup] Done");

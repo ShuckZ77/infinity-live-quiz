@@ -68,6 +68,11 @@ const rankings = require("./database/rankings");
 const videos = require("./database/videos");
 const scores = require("./database/scores");
 
+// Quiz response window: include near-miss answers around the visible timer.
+const RESPONSE_BUFFER_SECONDS = 3;
+const ALLOWED_TIMER_DURATIONS = new Set([15, 30, 45, 60, 90, 120, 180]);
+const RECENT_CHAT_RETENTION_MS = RESPONSE_BUFFER_SECONDS * 1000 + 2000;
+
 // ==========================================
 // SECTION 3: SESSION STATE MANAGEMENT
 // ==========================================
@@ -96,7 +101,12 @@ let session = {
   timerId: null, // Unique timer ID (DDMMYYHHMMSS format)
   questionType: "mcq", // 'mcq' | 'fill-blank' (NEW v3.7)
   answerSubmitted: false, // v3.9.1: Track if answer was already submitted (prevents modal on refresh)
+  collectingUntil: null, // Timestamp for the 3s post-timer answer buffer.
 };
+
+let activeTimerTimeout = null;
+let activeBufferTimeout = null;
+const recentChatMessages = [];
 
 // Current database session ID (for the YouTube video)
 let currentDbSessionId = null;
@@ -109,6 +119,15 @@ let currentVideoId = null;
  * Called when starting a new timer
  */
 function resetSession() {
+  if (activeTimerTimeout) {
+    clearTimeout(activeTimerTimeout);
+    activeTimerTimeout = null;
+  }
+  if (activeBufferTimeout) {
+    clearTimeout(activeBufferTimeout);
+    activeBufferTimeout = null;
+  }
+
   session = {
     status: "idle",
     startTime: null,
@@ -117,7 +136,88 @@ function resetSession() {
     timerId: null,
     questionType: "mcq",
     answerSubmitted: false, // v3.9.1
+    collectingUntil: null,
   };
+}
+
+function addRecentChatMessage(author, message, receivedAt) {
+  recentChatMessages.push({ author, message, receivedAt });
+
+  // Keep only enough chat history to seed the 3s pre-start buffer.
+  const cutoff = receivedAt.getTime() - RECENT_CHAT_RETENTION_MS;
+  while (
+    recentChatMessages.length > 0 &&
+    recentChatMessages[0].receivedAt.getTime() < cutoff
+  ) {
+    recentChatMessages.shift();
+  }
+}
+
+function recordSessionResponse(author, message, receivedAt) {
+  if (!session.startTime) return { isDuplicate: false, responseTime: null };
+
+  const responseTime = (receivedAt - session.startTime) / 1000;
+
+  if (session.userResponses.has(author)) {
+    const existing = session.userResponses.get(author);
+    existing.responseCount += 1;
+    session.userResponses.set(author, existing);
+    return { isDuplicate: true, responseTime };
+  }
+
+  session.userResponses.set(author, {
+    firstResponseTime: responseTime,
+    responseCount: 1,
+    message,
+  });
+
+  return { isDuplicate: false, responseTime };
+}
+
+function seedPreStartResponses() {
+  const cutoff = session.startTime.getTime() - RESPONSE_BUFFER_SECONDS * 1000;
+  const seeded = recentChatMessages.filter(
+    (entry) =>
+      entry.receivedAt.getTime() >= cutoff &&
+      entry.receivedAt.getTime() < session.startTime.getTime()
+  );
+
+  seeded.forEach((entry) =>
+    recordSessionResponse(entry.author, entry.message, entry.receivedAt)
+  );
+
+  console.log(`[Timer] Seeded ${seeded.length} pre-start buffered responses`);
+}
+
+function beginAnswerBuffer(io, duration, endedNaturally) {
+  session.status = "buffering";
+  session.collectingUntil = Date.now() + RESPONSE_BUFFER_SECONDS * 1000;
+
+  console.log(
+    `[Timer] Collecting final answers for ${RESPONSE_BUFFER_SECONDS}s buffer...`
+  );
+
+  io.emit("session-update", {
+    status: "buffering",
+    duration,
+    timeRemaining: 0,
+  });
+
+  activeBufferTimeout = setTimeout(async () => {
+    activeBufferTimeout = null;
+    session.status = "ended";
+    session.collectingUntil = null;
+
+    console.log(`\n========== TIMER ENDED ==========`);
+    console.log(`[Timer] Waiting for correct answer selection...`);
+    console.log(`[Timer] Total participants: ${session.userResponses.size}`);
+
+    io.emit("session-update", {
+      status: "ended",
+      duration,
+      timeRemaining: 0,
+    });
+  }, RESPONSE_BUFFER_SECONDS * 1000);
 }
 
 // Note: calculateRankings() removed in v3.7 - rankings are now calculated
@@ -148,9 +248,22 @@ async function main() {
   const server = http.createServer(app);
   const io = new Server(server);
   const PORT = 3001;
+  const clientDistPath = path.join(__dirname, "../client/dist");
+  const clientIndexPath = path.join(clientDistPath, "index.html");
 
   // Serve React build from client/dist (relative to project root)
-  app.use(express.static(path.join(__dirname, "../client/dist")));
+  app.use(express.static(clientDistPath));
+
+  app.get("/", (req, res, next) => {
+    if (require("fs").existsSync(clientIndexPath)) {
+      return res.sendFile(clientIndexPath);
+    }
+
+    res.status(503).send(`
+      <h1>Infinity Quiz UI is not built yet</h1>
+      <p>Run <code>npm run install:all</code> and then <code>npm run build</code>, then restart the app.</p>
+    `);
+  });
 
   // ----------------------------------------
   // 4.1.1: API Endpoints for Database Stats
@@ -487,8 +600,11 @@ async function main() {
       <th>Video ID</th>
       <th>Started</th>
       <th>Ended</th>
+      <th>15s</th>
       <th>30s</th>
+      <th>45s</th>
       <th>60s</th>
+      <th>90s</th>
       <th>120s</th>
       <th>180s</th>
       <th>Total Runs</th>
@@ -501,10 +617,13 @@ async function main() {
       <td>${s.video_id}</td>
       <td>${s.started_at || "-"}</td>
       <td>${s.ended_at || "<em>Active</em>"}</td>
-      <td>${s.timer_count_30s}</td>
-      <td>${s.timer_count_60s}</td>
-      <td>${s.timer_count_120s}</td>
-      <td>${s.timer_count_180s}</td>
+      <td>${s.timer_count_15s || 0}</td>
+      <td>${s.timer_count_30s || 0}</td>
+      <td>${s.timer_count_45s || 0}</td>
+      <td>${s.timer_count_60s || 0}</td>
+      <td>${s.timer_count_90s || 0}</td>
+      <td>${s.timer_count_120s || 0}</td>
+      <td>${s.timer_count_180s || 0}</td>
       <td>${s.total_timer_runs}</td>
     </tr>
     `
@@ -579,12 +698,24 @@ async function main() {
   <h2 id="timer-usage">⏱️ Timer Usage</h2>
   <div class="stats">
     <div class="stat-card">
+      <h3>15s Timers</h3>
+      <div class="value">${timerStats.total_15s}</div>
+    </div>
+    <div class="stat-card">
       <h3>30s Timers</h3>
       <div class="value">${timerStats.total_30s}</div>
     </div>
     <div class="stat-card">
+      <h3>45s Timers</h3>
+      <div class="value">${timerStats.total_45s}</div>
+    </div>
+    <div class="stat-card">
       <h3>60s Timers</h3>
       <div class="value">${timerStats.total_60s}</div>
+    </div>
+    <div class="stat-card">
+      <h3>90s Timers</h3>
+      <div class="value">${timerStats.total_90s}</div>
     </div>
     <div class="stat-card">
       <h3>120s Timers</h3>
@@ -677,10 +808,18 @@ async function main() {
      */
     socket.on("start-timer", async (data) => {
       const { duration, questionType } = data; // duration in seconds, questionType: 'mcq' | 'fill-blank'
+      const normalizedDuration = Number(duration);
+      const normalizedQuestionType =
+        questionType === "fill-blank" ? "fill-blank" : "mcq";
+
+      if (!ALLOWED_TIMER_DURATIONS.has(normalizedDuration)) {
+        console.log("[Timer] Ignoring invalid duration:", duration);
+        return;
+      }
 
       console.log(
-        `\n========== STARTING ${duration}s QUIZ (${
-          questionType || "mcq"
+        `\n========== STARTING ${normalizedDuration}s QUIZ (${
+          normalizedQuestionType
         }) ==========`
       );
 
@@ -693,9 +832,10 @@ async function main() {
       // Set new session state
       session.status = "running";
       session.startTime = new Date();
-      session.duration = duration;
+      session.duration = normalizedDuration;
       session.timerId = timerId;
-      session.questionType = questionType || "mcq"; // NEW v3.7
+      session.questionType = normalizedQuestionType; // NEW v3.7
+      seedPreStartResponses();
 
       console.log(
         `[Timer] Generated timer_id: ${timerId}, questionType: ${session.questionType}`
@@ -705,14 +845,14 @@ async function main() {
       if (currentDbSessionId) {
         try {
           // Increment timer count
-          await sessions.incrementTimerCount(currentDbSessionId, duration);
+          await sessions.incrementTimerCount(currentDbSessionId, normalizedDuration);
 
           // NEW v3.6: Create timer ranking record (v3.7: includes questionType)
           await rankings.createTimerRanking(
             timerId,
             currentDbSessionId,
             currentVideoId,
-            duration,
+            normalizedDuration,
             session.questionType
           );
         } catch (error) {
@@ -723,40 +863,19 @@ async function main() {
       // Broadcast session start to ALL connected clients
       io.emit("session-update", {
         status: "running",
-        duration: duration,
-        timeRemaining: duration,
+        duration: normalizedDuration,
+        timeRemaining: normalizedDuration,
       });
 
-      // Set timeout to end the session
-      setTimeout(async () => {
-        // Only end if still running (not manually stopped)
-        if (session.status === "running") {
-          session.status = "ended";
-
-          console.log(`\n========== TIMER ENDED ==========`);
-          console.log(`[Timer] Waiting for correct answer selection...`);
-          console.log(
-            `[Timer] Total participants: ${session.userResponses.size}`
-          );
-
-          // v3.7: Do NOT broadcast rankings yet - wait for submit-answer event
-          // Rankings will be filtered based on correct answer
-
-          // v3.12.1: Increment questions_asked for this video (timer ended naturally)
-          if (currentVideoId) {
-            scores.incrementQuestionsAsked(currentVideoId).catch(() => {});
-          }
-
-          // Notify all clients that timer ended (they will show answer selection modal)
-          io.emit("session-update", {
-            status: "ended",
-            duration: duration,
-            timeRemaining: 0,
-          });
-
-          // Note: rankings are NOT emitted here - wait for submit-answer
+      // Set timeout to enter the 3s post-timer response buffer.
+      const expectedTimerId = timerId;
+      activeTimerTimeout = setTimeout(async () => {
+        activeTimerTimeout = null;
+        // Only buffer if this exact timer is still running (not manually stopped/replaced)
+        if (session.status === "running" && session.timerId === expectedTimerId) {
+          beginAnswerBuffer(io, normalizedDuration, true);
         }
-      }, duration * 1000);
+      }, normalizedDuration * 1000);
     });
 
     // ----------------------------------------
@@ -764,23 +883,12 @@ async function main() {
     // ----------------------------------------
     socket.on("stop-timer", async () => {
       if (session.status === "running") {
-        session.status = "ended";
-
+        if (activeTimerTimeout) {
+          clearTimeout(activeTimerTimeout);
+          activeTimerTimeout = null;
+        }
         console.log(`\n========== TIMER STOPPED MANUALLY ==========`);
-        console.log(`[Timer] Waiting for correct answer selection...`);
-        console.log(
-          `[Timer] Total participants: ${session.userResponses.size}`
-        );
-
-        // v3.7: Do NOT broadcast rankings yet - wait for submit-answer event
-
-        io.emit("session-update", {
-          status: "ended",
-          duration: session.duration,
-          timeRemaining: 0,
-        });
-
-        // Note: rankings are NOT emitted here - wait for submit-answer
+        beginAnswerBuffer(io, session.duration, false);
       }
     });
 
@@ -810,6 +918,13 @@ async function main() {
         console.log("[Submit] Ignoring - session not ended");
         return;
       }
+
+      // Prevent refreshes or duplicate clicks from scoring the same timer twice.
+      if (session.answerSubmitted) {
+        console.log("[Submit] Ignoring - answer already submitted");
+        return;
+      }
+      session.answerSubmitted = true;
 
       console.log(`\n========== CORRECT ANSWER: ${answer} ==========`);
       console.log(`[Submit] Question type: ${session.questionType}`);
@@ -953,6 +1068,9 @@ async function main() {
           // Batch update all user scores
           await scores.batchUpdateScores(currentVideoId, participants);
 
+          // Count finalized scored questions only after the answer is submitted.
+          await scores.incrementQuestionsAsked(currentVideoId);
+
           // Get top 100 leaderboard
           const leaderboard = await scores.getVideoLeaderboard(
             currentVideoId,
@@ -974,11 +1092,9 @@ async function main() {
           );
         } catch (error) {
           console.error("[Video] Failed to update scores:", error.message);
+          session.answerSubmitted = false;
         }
       }
-
-      // v3.9.1: Mark answer as submitted to prevent modal on page refresh
-      session.answerSubmitted = true;
     });
 
     // ----------------------------------------
@@ -1253,6 +1369,7 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
         );
 
         const response = await Promise.race([fetchPromise, timeoutPromise]);
+        if (!isRunning) return;
 
         // console.log("[DEBUG] Fetch returned. Processing...");
         const contents = response.continuation_contents;
@@ -1292,6 +1409,7 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
 
             const finalMessage = message.toLowerCase().trim();
             const now = new Date();
+            addRecentChatMessage(author, finalMessage, now);
 
             // ----------------------------------------
             // Calculate time strings
@@ -1316,8 +1434,7 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
                 }
               })
               .catch((err) => {
-                // Squelch expected DB errors to keep logs clean
-                // console.error("[Database] Background update failed:", err.message);
+                console.error("[Database] Background update failed:", err.message);
               });
 
             // ----------------------------------------
@@ -1333,37 +1450,20 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
             let isDuplicate = false;
             let responseTime = null;
 
-            if (session.status === "running" && session.startTime) {
-              // Calculate response time in seconds from quiz start
-              responseTime = (now - session.startTime) / 1000;
+            if (
+              (session.status === "running" || session.status === "buffering") &&
+              session.startTime
+            ) {
+              // Track first answers inside the visible timer plus 3s after it ends.
+              const tracked = recordSessionResponse(author, finalMessage, now);
+              isDuplicate = tracked.isDuplicate;
+              responseTime = tracked.responseTime;
 
-              // Check if user already responded
-              if (session.userResponses.has(author)) {
-                // DUPLICATE: User already responded before
-                isDuplicate = true;
-                const existing = session.userResponses.get(author);
-                existing.responseCount += 1;
-                session.userResponses.set(author, existing);
-
-                console.log(
-                  `[DUPLICATE #${
-                    existing.responseCount
-                  }] [${responseTime.toFixed(3)}s] ${author}: ${finalMessage}`
-                );
-              } else {
-                // NEW USER: Record first response
-                session.userResponses.set(author, {
-                  firstResponseTime: responseTime,
-                  responseCount: 1,
-                  message: finalMessage,
-                });
-
-                console.log(
-                  `[NEW] [${responseTime.toFixed(
-                    3
-                  )}s] ${author}: ${finalMessage}`
-                );
-              }
+              console.log(
+                `[${isDuplicate ? "DUPLICATE" : "NEW"}] [${responseTime.toFixed(
+                  3
+                )}s] ${author}: ${finalMessage}`
+              );
             } else {
               // No active session, just log normally
               console.log(`[${timeString}] ${author}: ${finalMessage}`);
@@ -1385,13 +1485,13 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
               author,
               message: finalMessage,
               isDuplicate,
-              responseTime: responseTime ? responseTime.toFixed(3) : null,
+              responseTime: responseTime !== null ? responseTime.toFixed(3) : null,
             });
           }
         }
 
-        // Poll again after 100ms
-        setTimeout(poll, 100);
+        const pollDelay = getNextPollDelay(contents);
+        setTimeout(poll, pollDelay);
       } catch (err) {
         console.error("Polling error:", err);
         setTimeout(poll, 2000);
@@ -1418,6 +1518,27 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
   }
 
   return controller;
+}
+
+function getNextPollDelay(contents) {
+  const continuations =
+    contents?.live_chat_continuation?.continuations ||
+    contents?.continuations ||
+    [];
+
+  for (const item of continuations) {
+    const timeoutMs =
+      item?.timed_continuation_data?.timeout_ms ||
+      item?.invalidation_continuation_data?.timeout_ms ||
+      item?.timeout_ms;
+
+    const parsed = Number(timeoutMs);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.max(250, Math.min(parsed, 5000));
+    }
+  }
+
+  return 750;
 }
 
 // ==========================================

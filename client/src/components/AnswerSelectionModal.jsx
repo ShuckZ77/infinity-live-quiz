@@ -34,26 +34,8 @@ export const AnswerSelectionModal = ({ isOpen, questionType, onSubmit, onClose }
     }
   }, [isOpen]);
 
-  // Handle ESC key to close
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape' && onClose) {
-      onClose();
-    }
-    // Allow Enter to submit if valid
-    if (e.key === 'Enter') {
-      handleSubmit();
-    }
-  }, [onClose, selectedOption, textAnswer, questionType]);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, handleKeyDown]);
-
   // Handle submit
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     const isMCQ = questionType === QUESTION_TYPES.MCQ;
     const answer = isMCQ ? selectedOption : textAnswer.trim();
 
@@ -64,7 +46,25 @@ export const AnswerSelectionModal = ({ isOpen, questionType, onSubmit, onClose }
 
     setIsSubmitting(true);
     onSubmit(answer);
-  };
+  }, [onSubmit, questionType, selectedOption, textAnswer]);
+
+  // Handle ESC key to close
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape' && onClose) {
+      onClose();
+    }
+    // Allow Enter to submit if valid
+    if (e.key === 'Enter') {
+      handleSubmit();
+    }
+  }, [handleSubmit, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, handleKeyDown]);
 
   // Don't render if not open
   if (!isOpen) return null;

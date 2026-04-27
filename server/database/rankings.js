@@ -2,7 +2,7 @@
  * Rankings Database Operations
  *
  * Handles timer rankings storage and retrieval.
- * Each timer run is uniquely identified by a timer_id (DDMMYYHHMMSS format).
+ * Each timer run is uniquely identified by a timer_id.
  * Stores top 50 users with their response times for each timer run.
  *
  * HIERARCHY:
@@ -44,12 +44,14 @@ const { query, run } = require("./index");
 
 /**
  * Generate a unique timer ID based on current timestamp
- * Format: DDMMYYHHMMSS (12 characters)
+ * Format: DDMMYYHHMMSSmmmcc
  *
- * Example: 12122512300 = December 12, 2025, 12:30:00
+ * Example: 1212251230004201 = December 12, 2025, 12:30:00.042
  *
- * @returns {string} Timer ID in DDMMYYHHMMSS format
+ * @returns {string} Timer ID
  */
+let timerSequence = 0;
+
 function generateTimerId() {
   const now = new Date();
 
@@ -59,18 +61,22 @@ function generateTimerId() {
   const hours = String(now.getHours()).padStart(2, "0");
   const minutes = String(now.getMinutes()).padStart(2, "0");
   const seconds = String(now.getSeconds()).padStart(2, "0");
+  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
 
-  return `${day}${month}${year}${hours}${minutes}${seconds}`;
+  timerSequence = (timerSequence + 1) % 100;
+  const sequence = String(timerSequence).padStart(2, "0");
+
+  return `${day}${month}${year}${hours}${minutes}${seconds}${milliseconds}${sequence}`;
 }
 
 /**
  * Parse a timer ID back to its components
  *
- * @param {string} timerId - Timer ID in DDMMYYHHMMSS format
+ * @param {string} timerId - Timer ID
  * @returns {Object} Parsed components { day, month, year, hours, minutes, seconds, date }
  */
 function parseTimerId(timerId) {
-  if (!timerId || timerId.length !== 12) {
+  if (!timerId || timerId.length < 12) {
     return null;
   }
 

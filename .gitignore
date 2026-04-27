@@ -1,5 +1,7 @@
 # Dependencies
 node_modules
+package-lock.json
+**/package-lock.json
 .pnp
 .pnp.js
 
@@ -10,6 +12,7 @@ coverage
 # Production
 dist
 build
+dist-portable
 
 # Misc
 .DS_Store
@@ -42,10 +45,13 @@ lerna-debug.log*
 
 # Database
 *.db
+*.db-shm
+*.db-wal
 *.duckdb
 server/data/quiz.duckdb
 
 # App specific
+server/data/
 
 
 # Documentation cleanup for release
