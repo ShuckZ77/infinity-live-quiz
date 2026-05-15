@@ -38,6 +38,7 @@ let db = null;
 let saveInterval = null;
 let saveTimer = null;
 let isDirty = false;
+let transactionDepth = 0;
 
 const SAVE_DEBOUNCE_MS = 2000;
 
@@ -68,6 +69,10 @@ function saveDatabase() {
 function scheduleSave() {
   isDirty = true;
 
+  if (transactionDepth > 0) {
+    return;
+  }
+
   if (saveTimer) {
     return;
   }
@@ -76,6 +81,58 @@ function scheduleSave() {
     saveTimer = null;
     saveDatabase();
   }, SAVE_DEBOUNCE_MS);
+}
+
+function getScalar(sql) {
+  const stmt = db.prepare(sql);
+  try {
+    if (!stmt.step()) return 0;
+    const row = stmt.getAsObject();
+    return Number(Object.values(row)[0] || 0);
+  } finally {
+    stmt.free();
+  }
+}
+
+function sanitizeNegativeResponseTimes() {
+  const negativeResponses = getScalar(
+    "SELECT COUNT(*) FROM quiz_responses WHERE response_time_ms < 0"
+  );
+  const negativeAttempts = getScalar(
+    "SELECT COUNT(*) FROM quiz_response_attempts WHERE response_time_ms < 0"
+  );
+
+  if (negativeResponses === 0 && negativeAttempts === 0) {
+    return;
+  }
+
+  db.run("UPDATE quiz_responses SET response_time_ms = 0 WHERE response_time_ms < 0");
+  db.run(
+    "UPDATE quiz_response_attempts SET response_time_ms = 0 WHERE response_time_ms < 0"
+  );
+  db.run(`
+    UPDATE session_scores
+    SET total_correct_response_time_ms = COALESCE((
+      SELECT SUM(qr.response_time_ms)
+      FROM quiz_responses qr
+      JOIN quiz_runs q ON q.run_id = qr.run_id
+      WHERE q.session_id = session_scores.session_id
+        AND qr.username = session_scores.username
+        AND qr.is_correct = 1
+    ), 0)
+    WHERE EXISTS (
+      SELECT 1
+      FROM quiz_responses qr
+      JOIN quiz_runs q ON q.run_id = qr.run_id
+      WHERE q.session_id = session_scores.session_id
+        AND qr.username = session_scores.username
+    )
+  `);
+
+  isDirty = true;
+  console.log(
+    `[Database] Corrected negative response times: ${negativeResponses} responses, ${negativeAttempts} attempts`
+  );
 }
 
 /**
@@ -137,6 +194,8 @@ async function initDatabase() {
         }
       }
     }
+
+    sanitizeNegativeResponseTimes();
 
     // Save database after schema init
     scheduleSave();
@@ -207,6 +266,50 @@ function run(sql, params = []) {
 }
 
 /**
+ * Execute multiple writes as one SQLite transaction and one scheduled disk save.
+ *
+ * @param {Function} callback - Async work to run inside the transaction
+ * @returns {Promise<*>} callback result
+ */
+async function transaction(callback) {
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
+
+  const isOuterTransaction = transactionDepth === 0;
+  transactionDepth += 1;
+
+  try {
+    if (isOuterTransaction) {
+      db.run("BEGIN TRANSACTION");
+    }
+
+    const result = await callback();
+
+    if (isOuterTransaction) {
+      db.run("COMMIT");
+      isDirty = true;
+    }
+
+    return result;
+  } catch (error) {
+    if (isOuterTransaction) {
+      try {
+        db.run("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("[Database] Rollback failed:", rollbackError.message);
+      }
+    }
+    throw error;
+  } finally {
+    transactionDepth -= 1;
+    if (isOuterTransaction && transactionDepth === 0 && isDirty) {
+      scheduleSave();
+    }
+  }
+}
+
+/**
  * Close database connection gracefully
  *
  * @returns {Promise<void>}
@@ -251,6 +354,7 @@ module.exports = {
   closeDatabase,
   query,
   run,
+  transaction,
   getDb,
   getConnection,
   DB_PATH,

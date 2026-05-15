@@ -33,6 +33,7 @@ export const SOCKET_EVENTS = {
   CHAT_MESSAGE: 'chat-message',
   RANKINGS: 'rankings',
   ANSWER_DISTRIBUTION: 'answer-distribution', // v3.9
+  SESSION_ERROR: 'session-error',
   START_TIMER: 'start-timer',
   STOP_TIMER: 'stop-timer',
   RESET_SESSION: 'reset-session',

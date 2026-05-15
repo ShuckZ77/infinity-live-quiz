@@ -1,20 +1,45 @@
-<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/f7d91288-0b82-482d-b23e-a12191cd65c4" /># Infinity Live Quiz
+# Infinity Live Quiz
 
 **Version 4.0.0**
 
 A real-time local quiz system powered by YouTube Live Chat. Engage your audience with interactive quizzes, leaderboards, and instant feedback.
 
-## 🚀 Features
+## Features
 
-- **Real-time Integration**: Connects directly to YouTube Live Chat.
-- **Session Leaderboard (Top 100)**: Displays top 100 participants with avatars and ranks.
-- **Persistent Scoring**: Tracks scores across multiple quiz sessions for the same video.
-- **Question Types**: Multiple Choice (A/B/C/D) and Fill-in-the-Blanks.
-- **Smart Timer**: 30s, 60s, 120s, 180s durations with on-screen countdown.
-- **Responsive UI**: Modern, glassmorphism design that adapts to screen sizes.
-- **Cross-Platform**: Built with Node.js and SQLite.
+- **Real-time YouTube chat**: Connects to live stream chat through `youtubei.js`.
+- **Question types**: Multiple Choice (A/B/C/D) and Fill-in-the-Blanks.
+- **Smart timer**: 15s, 30s, 45s, 60s, 90s, 120s, and 180s durations.
+- **Answer buffering**: Accepts near-miss answers around timer start/end.
+- **Question ranking**: Fastest correct responders per question.
+- **Session leaderboard**: Cumulative top 100 participants.
+- **Answer distribution**: MCQ pie chart with matching legend colors and green highlight only on the correct option.
+- **Local-first database**: Fresh SQLite schema with readable session and question IDs.
+- **Database viewers**: Browser viewer at `/db` with paginated table panels, plus terminal viewer through `npm run db`.
 
-## 🛠️ How to Use
+## Database Model
+
+The local database is SQLite via `sql.js` and stores quiz data in this shape:
+
+```text
+videos -> quiz_sessions -> quiz_runs -> quiz_responses -> session_scores
+```
+
+Important tables:
+
+- `users`: YouTube usernames and activity totals.
+- `videos`: video metadata and question count.
+- `quiz_sessions`: one readable session ID per selected video.
+- `quiz_runs`: one readable question/runtime ID per timer.
+- `quiz_responses`: one first-response row per user per question.
+- `quiz_response_attempts`: every answer attempt, including duplicates.
+- `session_scores`: cumulative leaderboard per session/video.
+
+Readable IDs:
+
+- Session: `S-YYYYMMDD-HHMMSS-001`
+- Question/runtime: `Q-YYYYMMDD-HHMMSS-001`
+
+## How to Use
 
 ### Prerequisites
 
@@ -41,6 +66,20 @@ npm start
 
 Then open `http://localhost:3001` in your browser.
 
+For development with Nodemon:
+
+```bash
+npm run dev
+```
+
+Database viewers:
+
+```bash
+npm run db
+```
+
+Browser: `http://localhost:3001/db`
+
 ### Running a Quiz
 
 1.  **Paste Video ID**: In the browser, enter the ID of your active YouTube Live stream (e.g., `dQw4w9WgXcQ`).
@@ -52,25 +91,27 @@ Then open `http://localhost:3001` in your browser.
 5.  **Quiz Active**: Users type answers in YouTube chat.
 6.  **End**: When the timer stops, click "Stop Timer" or wait for it to finish.
 7.  **Select Answer**: A popup will appear. Select the correct answer to calculate scores.
-8.  **Results**: A bar chart of results will appear, and the Session Leaderboard will update at the bottom.
+8.  **Results**: Answer distribution appears, the correct option highlights green, and the Session Leaderboard updates.
 
-## ❓ Troubleshooting
+## Supabase Direction
+
+Supabase is planned as the remote storage layer.
+
+- Local SQLite remains the first write target.
+- The app should upload changed rows to Supabase every 60 seconds while running.
+- Supabase sync should use an outbox/watermark so it does not rescan every table repeatedly.
+- Live chat handlers should not call Supabase directly, keeping quiz timing fast and resilient.
+
+## Troubleshooting
 
 - **"Node.js is not installed"**: Please install Node.js from the official website.
 - **Browser doesn't open**: Manually open `http://localhost:3001` in Chrome or Edge.
 - **Port 3001 in use**: Close any other running instances of the app.
 - **No chat messages**: Ensure the video is LIVE and chat is enabled.
+- **UI is not built**: Run `npm run build`, then restart the app.
+- **Inspect local DB**: Open `/db` or run `npm run db`.
+- **Negative answer time**: Rebuild/restart. Current code clamps pre-start buffered answers to `0.000s`.
 
-## 📄 License
+## License
 
 ISC License
-
-
-<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/3fb87e21-98b0-4478-9a2b-4cdfba155b07" />
-<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/f7ac2326-912e-4142-af1e-c79562dc8ff7" />
-<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/994beacd-ab2f-45cd-b599-83264dac29b3" />
-<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/c9e04610-bdf3-41b7-8589-ba3cabf4fa91" />
-<img width="2140" height="1586" alt="image" src="https://github.com/user-attachments/assets/5cf2dca2-eeb3-40b7-8eba-f36d5c323631" />
-
-
-

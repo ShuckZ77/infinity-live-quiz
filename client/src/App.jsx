@@ -54,10 +54,12 @@ function App() {
     messages,
     rankings,
     answerDistribution,
+    sessionError,
     startTimer,
     stopTimer,
     resetSession,
     submitAnswer,
+    clearSessionError,
     // Video State (v3.10)
     videoId,
     videoStatus,
@@ -116,6 +118,17 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [sessionStatus]);
+
+  useEffect(() => {
+    if (
+      sessionError &&
+      ["score-update-failed", "answer-submit-failed"].includes(
+        sessionError.type
+      )
+    ) {
+      setShowAnswerModal(true);
+    }
+  }, [sessionError]);
 
   // Handle answer submission
   const handleAnswerSubmit = useCallback(
@@ -177,6 +190,15 @@ function App() {
         channelName={channelName}
         viewCount={viewCount}
       />
+
+      {sessionError && (
+        <div className="session-error-banner" role="alert">
+          <span>{sessionError.message}</span>
+          <button type="button" onClick={clearSessionError}>
+            x
+          </button>
+        </div>
+      )}
 
       {/* Main content area */}
       <main className="main-content">

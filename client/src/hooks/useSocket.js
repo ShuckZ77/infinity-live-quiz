@@ -30,6 +30,7 @@ export const useSocket = () => {
   const [messages, setMessages] = useState([]);
   const [rankings, setRankings] = useState([]);
   const [answerDistribution, setAnswerDistribution] = useState(null); // v3.9
+  const [sessionError, setSessionError] = useState(null);
 
   // Video Status State (v3.10)
   const [videoId, setVideoIdState] = useState(null);
@@ -139,6 +140,7 @@ export const useSocket = () => {
 
       // Clear messages when starting new session
       if (data.status === SESSION_STATUS.RUNNING) {
+        setSessionError(null);
         setMessages([]);
         setRankings([]);
         setAnswerDistribution(null); // v3.9: Clear distribution
@@ -171,6 +173,14 @@ export const useSocket = () => {
     socket.on(SOCKET_EVENTS.ANSWER_DISTRIBUTION, (data) => {
       console.log("[Socket] Answer distribution received:", data);
       setAnswerDistribution(data);
+    });
+
+    socket.on(SOCKET_EVENTS.SESSION_ERROR, (data) => {
+      console.error("[Socket] Session error:", data);
+      setSessionError({
+        type: data?.type || "session-error",
+        message: data?.message || "Something went wrong.",
+      });
     });
 
     // Cleanup on unmount
@@ -221,6 +231,7 @@ export const useSocket = () => {
   const resetSession = useCallback(() => {
     if (socketRef.current) {
       socketRef.current.emit(SOCKET_EVENTS.RESET_SESSION);
+      setSessionError(null);
       setMessages([]);
       setRankings([]);
       setAnswerDistribution(null); // v3.9
@@ -244,16 +255,19 @@ export const useSocket = () => {
     messages,
     rankings,
     answerDistribution, // v3.9
+    sessionError,
 
     // Actions
     startTimer,
     stopTimer,
     resetSession,
     submitAnswer,
+    clearSessionError: () => setSessionError(null),
     setVideoId: (id) => {
       if (socketRef.current) {
         setVideoStatus("connecting");
         setVideoError(null);
+        setSessionError(null);
         socketRef.current.emit("set-video-id", id);
       }
     },

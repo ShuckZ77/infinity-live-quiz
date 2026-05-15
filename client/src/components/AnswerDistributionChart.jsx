@@ -11,24 +11,37 @@
 
 import PropTypes from "prop-types";
 
-// Modern gradient colors for each answer option
-const OPTION_COLORS = {
-  A: { main: "#10b981", gradient: "linear-gradient(135deg, #10b981, #059669)" }, // Emerald
-  B: { main: "#3b82f6", gradient: "linear-gradient(135deg, #3b82f6, #2563eb)" }, // Blue
-  C: { main: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #d97706)" }, // Amber
-  D: { main: "#8b5cf6", gradient: "linear-gradient(135deg, #8b5cf6, #7c3aed)" }, // Violet
+const CORRECT_COLOR = {
+  main: "#22c55e",
+  gradient: "linear-gradient(135deg, #22c55e, #16a34a)",
 };
+
+// Vibrant option colors used when an option is not the correct answer.
+const OPTION_COLORS = {
+  A: { main: "#06b6d4", gradient: "linear-gradient(135deg, #06b6d4, #0891b2)" },
+  B: { main: "#6366f1", gradient: "linear-gradient(135deg, #6366f1, #4f46e5)" },
+  C: { main: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #d97706)" },
+  D: { main: "#ec4899", gradient: "linear-gradient(135deg, #ec4899, #db2777)" },
+};
+
+const normalizeCorrectAnswer = (correctAnswer) =>
+  String(correctAnswer || "").trim().toUpperCase().charAt(0);
+
+const getOptionColor = (option, correctAnswer) =>
+  option === normalizeCorrectAnswer(correctAnswer)
+    ? CORRECT_COLOR
+    : OPTION_COLORS[option];
 
 // Calculate pie chart segments
 const calculateSegments = (distribution) => {
-  const { A, B, C, D, total } = distribution;
+  const { A, B, C, D, total, correctAnswer } = distribution;
   if (total === 0) return [];
 
   const options = [
-    { option: "A", count: A, color: OPTION_COLORS.A.main },
-    { option: "B", count: B, color: OPTION_COLORS.B.main },
-    { option: "C", count: C, color: OPTION_COLORS.C.main },
-    { option: "D", count: D, color: OPTION_COLORS.D.main },
+    { option: "A", count: A, color: getOptionColor("A", correctAnswer).main },
+    { option: "B", count: B, color: getOptionColor("B", correctAnswer).main },
+    { option: "C", count: C, color: getOptionColor("C", correctAnswer).main },
+    { option: "D", count: D, color: getOptionColor("D", correctAnswer).main },
   ];
 
   let startAngle = 0;
@@ -81,7 +94,7 @@ const describeArc = (cx, cy, radius, startAngle, endAngle) => {
 };
 
 // Individual pie segment with hover effect
-const PieSegment = ({ segment, cx, cy, radius, index }) => {
+const PieSegment = ({ segment, cx, cy, radius, index, isCorrect }) => {
   const path = describeArc(
     cx,
     cy,
@@ -94,11 +107,13 @@ const PieSegment = ({ segment, cx, cy, radius, index }) => {
     <path
       d={path}
       fill={segment.color}
-      stroke="rgba(26, 26, 46, 0.8)"
-      strokeWidth="3"
-      className="pie-segment"
+      stroke={isCorrect ? "#bbf7d0" : "rgba(26, 26, 46, 0.8)"}
+      strokeWidth={isCorrect ? "5" : "3"}
+      className={`pie-segment ${isCorrect ? "correct" : ""}`}
       style={{
-        filter: "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3))",
+        filter: isCorrect
+          ? "brightness(1.12) drop-shadow(0 0 18px rgba(34, 197, 94, 0.55))"
+          : "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3))",
         animationDelay: `${index * 0.1}s`,
       }}
     />
@@ -111,38 +126,45 @@ PieSegment.propTypes = {
   cy: PropTypes.number.isRequired,
   radius: PropTypes.number.isRequired,
   index: PropTypes.number.isRequired,
+  isCorrect: PropTypes.bool.isRequired,
 };
 
 // Modern legend item with progress bar
-const LegendItem = ({ option, count, percentage, isCorrect, index }) => (
-  <div
-    className={`legend-item ${isCorrect ? "correct" : ""}`}
-    style={{ animationDelay: `${0.3 + index * 0.1}s` }}
-  >
+const LegendItem = ({ option, count, percentage, isCorrect, index }) => {
+  const optionColor = getOptionColor(option, isCorrect ? option : null);
+
+  return (
     <div
-      className="legend-option-badge"
-      style={{ background: OPTION_COLORS[option].gradient }}
+      className={`legend-item ${isCorrect ? "correct" : ""}`}
+      style={{ animationDelay: `${0.3 + index * 0.1}s` }}
     >
-      {option}
-    </div>
-    <div className="legend-info">
-      <div className="legend-header">
-        <span className="legend-count">{count} votes</span>
-        {isCorrect && <span className="correct-badge">✓ Correct</span>}
+      <div
+        className="legend-option-badge"
+        style={{
+          background: optionColor.gradient,
+        }}
+      >
+        {option}
       </div>
-      <div className="legend-progress-container">
-        <div
-          className="legend-progress-bar"
-          style={{
-            width: `${percentage}%`,
-            background: OPTION_COLORS[option].gradient,
-          }}
-        />
+      <div className="legend-info">
+        <div className="legend-header">
+          <span className="legend-count">{count} votes</span>
+          {isCorrect && <span className="correct-badge">✓ Correct</span>}
+        </div>
+        <div className="legend-progress-container">
+          <div
+            className="legend-progress-bar"
+            style={{
+              width: `${percentage}%`,
+              background: optionColor.gradient,
+            }}
+          />
+        </div>
+        <span className="legend-percentage">{percentage.toFixed(1)}%</span>
       </div>
-      <span className="legend-percentage">{percentage.toFixed(1)}%</span>
     </div>
-  </div>
-);
+  );
+};
 
 LegendItem.propTypes = {
   option: PropTypes.string.isRequired,
@@ -157,6 +179,7 @@ export const AnswerDistributionChart = ({ distribution, onClose }) => {
   if (!distribution) return null;
 
   const { A, B, C, D, total, correctAnswer } = distribution;
+  const normalizedCorrectAnswer = normalizeCorrectAnswer(correctAnswer);
   const segments = calculateSegments(distribution);
 
   // Compact chart dimensions for side-by-side layout
@@ -177,6 +200,11 @@ export const AnswerDistributionChart = ({ distribution, onClose }) => {
           <div className="chart-title-container">
             <span className="chart-icon">📊</span>
             <h2 className="chart-title">Answer Distribution</h2>
+            {normalizedCorrectAnswer && (
+              <span className="chart-correct-answer">
+                Correct: {normalizedCorrectAnswer}
+              </span>
+            )}
           </div>
           <button className="chart-close-btn" onClick={onClose} title="Close">
             <svg
@@ -234,6 +262,7 @@ export const AnswerDistributionChart = ({ distribution, onClose }) => {
                       cy={cy}
                       radius={radius}
                       index={index}
+                      isCorrect={segment.option === normalizedCorrectAnswer}
                     />
                   ))}
 
@@ -273,28 +302,28 @@ export const AnswerDistributionChart = ({ distribution, onClose }) => {
                   option="A"
                   count={A}
                   percentage={getPercentage(A)}
-                  isCorrect={correctAnswer === "A"}
+                  isCorrect={normalizedCorrectAnswer === "A"}
                   index={0}
                 />
                 <LegendItem
                   option="B"
                   count={B}
                   percentage={getPercentage(B)}
-                  isCorrect={correctAnswer === "B"}
+                  isCorrect={normalizedCorrectAnswer === "B"}
                   index={1}
                 />
                 <LegendItem
                   option="C"
                   count={C}
                   percentage={getPercentage(C)}
-                  isCorrect={correctAnswer === "C"}
+                  isCorrect={normalizedCorrectAnswer === "C"}
                   index={2}
                 />
                 <LegendItem
                   option="D"
                   count={D}
                   percentage={getPercentage(D)}
-                  isCorrect={correctAnswer === "D"}
+                  isCorrect={normalizedCorrectAnswer === "D"}
                   index={3}
                 />
               </div>

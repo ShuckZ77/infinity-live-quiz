@@ -161,6 +161,33 @@
   animation: none;
 }
 
+.session-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  background: rgba(239, 68, 68, 0.16);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fecaca;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.session-error-banner button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(254, 202, 202, 0.35);
+  border-radius: 50%;
+  background: rgba(127, 29, 29, 0.35);
+  color: #fff;
+  cursor: pointer;
+  line-height: 1;
+}
+
 /* ==========================================
    v3.11 NEW: HEADER VIDEO INFO
    ==========================================
@@ -1719,6 +1746,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .chart-icon {
@@ -1742,6 +1770,19 @@
   color: #fff;
   margin: 0;
   letter-spacing: -0.02em;
+}
+
+.chart-correct-answer {
+  padding: 0.35rem 0.75rem;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border: 1px solid rgba(187, 247, 208, 0.55);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.3);
+  text-transform: uppercase;
 }
 
 .chart-close-btn {
@@ -1843,6 +1884,10 @@
   transform-origin: center;
 }
 
+.pie-segment.correct {
+  transform-origin: center;
+}
+
 .center-total {
   fill: #fff;
   font-size: 1.75rem;
@@ -1903,6 +1948,12 @@
   );
   border-color: rgba(16, 185, 129, 0.3);
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+}
+
+.legend-item.correct .legend-option-badge {
+  box-shadow:
+    0 0 18px rgba(34, 197, 94, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .legend-option-badge {

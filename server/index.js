@@ -1,24 +1,9 @@
 /**
  * YouTube Live Chat Quiz/Competition System - Server
- * v3.7.0 - Quiz Enhancement: Countdown, Question Types, Answer Filtering
  *
- * FEATURES:
- * 1. Timer-based quiz sessions (30s, 60s, 120s, 180s)
- * 2. Tracks first response time for each user
- * 3. Detects duplicate comments from same user
- * 4. Calculates rankings based on response speed
- * 5. Real-time chat display with Socket.io
- * 6. Persistent user profiles with SQLite (sql.js)
- * 7. Session tracking with timer usage stats
- * 8. Timer rankings with unique timer_id (DDMMYYHHMMSS)
- * 9. NEW v3.7: Question types (MCQ, Fill-in-blanks)
- * 10. NEW v3.7: Answer filtering (show only correct answers)
- *
- * DATABASE:
- * - Users: username, first_seen, last_active, total_comment_count
- * - Sessions: video_id, started_at, timer counts per duration
- * - User_Sessions: Links users to sessions with activity stats
- * - Timer_Rankings: Unique timer_id per quiz, stores top 50 with response times
+ * The app stores live quiz data locally first:
+ * videos -> quiz_sessions -> quiz_runs -> quiz_responses -> session_scores.
+ * Public socket events and API route names stay stable for the React client.
  */
 
 // ==========================================
@@ -67,6 +52,7 @@ const sessions = require("./database/sessions");
 const rankings = require("./database/rankings");
 const videos = require("./database/videos");
 const scores = require("./database/scores");
+const { renderDatabaseViewer } = require("./database/viewer");
 
 // Quiz response window: include near-miss answers around the visible timer.
 const RESPONSE_BUFFER_SECONDS = 3;
@@ -84,13 +70,13 @@ const RECENT_CHAT_RETENTION_MS = RESPONSE_BUFFER_SECONDS * 1000 + 2000;
  * - startTime: When the timer was started (Date object)
  * - duration: How long the timer runs (in seconds)
  * - userResponses: Map of username -> { firstResponseTime, responseCount }
- * - timerId: Unique ID for this timer run (DDMMYYHHMMSS format)
- * - questionType: 'mcq' | 'fill-blank' (NEW v3.7)
+ * - timerId: Readable runtime/question ID (Q-YYYYMMDD-HHMMSS-001)
+ * - questionType: 'mcq' | 'fill-blank'
  *
  * APPROACH:
  * We use a simple object to maintain state across socket connections.
  * The userResponses Map tracks:
- * - firstResponseTime: milliseconds since session start (for ranking)
+ * - firstResponseTime: seconds since session start, clamped at 0 (for ranking)
  * - responseCount: how many times this user commented (for duplicate detection)
  */
 let session = {
@@ -98,9 +84,9 @@ let session = {
   startTime: null, // Date object when timer started
   duration: 0, // Timer duration in seconds
   userResponses: new Map(), // Map<username, { firstResponseTime, responseCount, message }>
-  timerId: null, // Unique timer ID (DDMMYYHHMMSS format)
-  questionType: "mcq", // 'mcq' | 'fill-blank' (NEW v3.7)
-  answerSubmitted: false, // v3.9.1: Track if answer was already submitted (prevents modal on refresh)
+  timerId: null, // Readable runtime/question ID.
+  questionType: "mcq",
+  answerSubmitted: false, // Prevents duplicate scoring and refresh re-submits.
   collectingUntil: null, // Timestamp for the 3s post-timer answer buffer.
 };
 
@@ -108,11 +94,19 @@ let activeTimerTimeout = null;
 let activeBufferTimeout = null;
 const recentChatMessages = [];
 
+// Tracks the one answer finalization currently writing rankings/scores.
+let activeSubmitTimerId = null;
+
 // Current database session ID (for the YouTube video)
 let currentDbSessionId = null;
 
 // Current video ID (stored for rankings)
 let currentVideoId = null;
+
+function getResponseTimeSeconds(receivedAt, startedAt) {
+  const elapsedMs = receivedAt.getTime() - startedAt.getTime();
+  return Math.max(0, elapsedMs / 1000);
+}
 
 /**
  * Reset session to initial state
@@ -135,7 +129,7 @@ function resetSession() {
     userResponses: new Map(),
     timerId: null,
     questionType: "mcq",
-    answerSubmitted: false, // v3.9.1
+    answerSubmitted: false,
     collectingUntil: null,
   };
 }
@@ -151,12 +145,21 @@ function addRecentChatMessage(author, message, receivedAt) {
   ) {
     recentChatMessages.shift();
   }
+
+  // High-volume streams can exceed the time window before old entries age out.
+  if (recentChatMessages.length > 500) {
+    recentChatMessages.splice(0, recentChatMessages.length - 500);
+  }
+}
+
+function emitSessionError(io, type, message) {
+  io.emit("session-error", { type, message });
 }
 
 function recordSessionResponse(author, message, receivedAt) {
   if (!session.startTime) return { isDuplicate: false, responseTime: null };
 
-  const responseTime = (receivedAt - session.startTime) / 1000;
+  const responseTime = getResponseTimeSeconds(receivedAt, session.startTime);
 
   if (session.userResponses.has(author)) {
     const existing = session.userResponses.get(author);
@@ -187,9 +190,10 @@ function seedPreStartResponses() {
   );
 
   console.log(`[Timer] Seeded ${seeded.length} pre-start buffered responses`);
+  return seeded;
 }
 
-function beginAnswerBuffer(io, duration, endedNaturally) {
+function beginAnswerBuffer(io, duration) {
   session.status = "buffering";
   session.collectingUntil = Date.now() + RESPONSE_BUFFER_SECONDS * 1000;
 
@@ -219,9 +223,6 @@ function beginAnswerBuffer(io, duration, endedNaturally) {
     });
   }, RESPONSE_BUFFER_SECONDS * 1000);
 }
-
-// Note: calculateRankings() removed in v3.7 - rankings are now calculated
-// in submit-answer handler after filtering by correct answer
 
 // ==========================================
 // SECTION 4: MAIN EXECUTION
@@ -318,9 +319,9 @@ async function main() {
     }
   });
 
-  // ----------------------------------------
-  // 4.1.2: Rankings API Endpoints (NEW v3.6)
-  // ----------------------------------------
+    // ----------------------------------------
+    // 4.1.2: Rankings API Endpoints
+    // ----------------------------------------
 
   // Get all timer rankings
   app.get("/api/rankings", async (req, res) => {
@@ -397,7 +398,7 @@ async function main() {
   });
 
   // ----------------------------------------
-  // 4.1.2b: User Responses API Endpoints (v3.8)
+    // 4.1.2b: User Responses API Endpoints
   // ----------------------------------------
 
   // Get all user responses for a timer (correct and wrong)
@@ -433,7 +434,7 @@ async function main() {
     }
   });
 
-  // Get answer distribution for a timer (v3.9)
+    // Get answer distribution for a timer
   app.get("/api/rankings/:timerId/distribution", async (req, res) => {
     try {
       const distribution = await rankings.getAnswerDistribution(
@@ -455,282 +456,7 @@ async function main() {
   // ----------------------------------------
   app.get("/db", async (req, res) => {
     try {
-      const allUsers = await users.getAllUsers();
-      const allSessions = await sessions.getAllSessions();
-      const userStats = await users.getUserStats();
-      const timerStats = await sessions.getTimerStats();
-      const allTimerRankings = await rankings.getAllTimerRankings(50);
-      const rankingStats = await rankings.getRankingStats();
-      const allUserResponses = await rankings.getAllUserResponses(100); // v3.8
-      const allVideos = await videos.getAllVideos(50); // v3.11
-
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Database Viewer</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-    h1 { color: #333; }
-    h2 { color: #555; margin-top: 30px; }
-    table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); margin-bottom: 20px; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-    th { background: #4a90d9; color: white; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    tr:hover { background: #f1f1f1; }
-    .stats { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
-    .stat-card { background: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-    .stat-card h3 { margin: 0 0 5px 0; color: #666; font-size: 14px; }
-    .stat-card .value { font-size: 24px; font-weight: bold; color: #4a90d9; }
-    .refresh { margin-bottom: 20px; }
-    .refresh a { background: #4a90d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
-    .refresh a:hover { background: #357abd; }
-    .timer-id { font-family: monospace; background: #e8e8e8; padding: 2px 6px; border-radius: 3px; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; }
-    .badge-30 { background: #dcfce7; color: #166534; }
-    .badge-60 { background: #dbeafe; color: #1e40af; }
-    .badge-120 { background: #fef3c7; color: #92400e; }
-    .badge-180 { background: #fce7f3; color: #9d174d; }
-    .nav { margin-bottom: 20px; }
-    .nav a { margin-right: 15px; color: #4a90d9; text-decoration: none; }
-    .nav a:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-  <h1>📊 Database Viewer</h1>
-  <div class="refresh"><a href="/db">🔄 Refresh</a></div>
-  <div class="nav">
-    <a href="#stats">Statistics</a>
-    <a href="#videos">Videos</a>
-    <a href="#users">Users</a>
-    <a href="#sessions">Sessions</a>
-    <a href="#rankings">Timer Rankings</a>
-    <a href="#responses">User Responses</a>
-    <a href="#timer-usage">Timer Usage</a>
-  </div>
-
-  <h2 id="stats">📈 Statistics</h2>
-  <div class="stats">
-    <div class="stat-card">
-      <h3>Total Users</h3>
-      <div class="value">${userStats.total_users}</div>
-    </div>
-    <div class="stat-card">
-      <h3>Total Messages</h3>
-      <div class="value">${userStats.total_messages}</div>
-    </div>
-    <div class="stat-card">
-      <h3>Total Sessions</h3>
-      <div class="value">${timerStats.total_sessions}</div>
-    </div>
-    <div class="stat-card">
-      <h3>Timer Runs</h3>
-      <div class="value">${timerStats.total_runs}</div>
-    </div>
-    <div class="stat-card">
-      <h3>Ranked Timers</h3>
-      <div class="value">${rankingStats.total_timer_runs}</div>
-    </div>
-    <div class="stat-card">
-      <h3>Total Participants</h3>
-      <div class="value">${rankingStats.total_participants}</div>
-    </div>
-  </div>
-
-  <h2 id="videos">🎬 Videos (${allVideos.length})</h2>
-  <table>
-    <tr>
-      <th>Video ID</th>
-      <th>Channel</th>
-      <th>Title</th>
-      <th>Approx Views</th>
-      <th>First Seen</th>
-      <th>Last Seen</th>
-    </tr>
-    ${allVideos
-      .map(
-        (v) => `
-    <tr>
-      <td><a href="https://youtube.com/watch?v=${v.video_id}" target="_blank">${
-          v.video_id
-        }</a></td>
-      <td>${v.channel_name || "-"}</td>
-      <td>${
-        v.title
-          ? v.title.length > 50
-            ? v.title.substring(0, 50) + "..."
-            : v.title
-          : "-"
-      }</td>
-      <td>${(v.approx_views || 0).toLocaleString()}</td>
-      <td>${v.first_seen_at || "-"}</td>
-      <td>${v.last_seen_at || "-"}</td>
-    </tr>
-    `
-      )
-      .join("")}
-  </table>
-
-  <h2 id="users">👥 Users (${allUsers.length})</h2>
-  <table>
-    <tr>
-      <th>Username</th>
-      <th>First Seen</th>
-      <th>Last Active</th>
-      <th>Total Messages</th>
-    </tr>
-    ${allUsers
-      .map(
-        (u) => `
-    <tr>
-      <td>${u.username}</td>
-      <td>${u.first_seen || "-"}</td>
-      <td>${u.last_active || "-"}</td>
-      <td>${u.total_comment_count}</td>
-    </tr>
-    `
-      )
-      .join("")}
-  </table>
-
-  <h2 id="sessions">🎬 Sessions (${allSessions.length})</h2>
-  <table>
-    <tr>
-      <th>ID</th>
-      <th>Video ID</th>
-      <th>Started</th>
-      <th>Ended</th>
-      <th>15s</th>
-      <th>30s</th>
-      <th>45s</th>
-      <th>60s</th>
-      <th>90s</th>
-      <th>120s</th>
-      <th>180s</th>
-      <th>Total Runs</th>
-    </tr>
-    ${allSessions
-      .map(
-        (s) => `
-    <tr>
-      <td>${s.id}</td>
-      <td>${s.video_id}</td>
-      <td>${s.started_at || "-"}</td>
-      <td>${s.ended_at || "<em>Active</em>"}</td>
-      <td>${s.timer_count_15s || 0}</td>
-      <td>${s.timer_count_30s || 0}</td>
-      <td>${s.timer_count_45s || 0}</td>
-      <td>${s.timer_count_60s || 0}</td>
-      <td>${s.timer_count_90s || 0}</td>
-      <td>${s.timer_count_120s || 0}</td>
-      <td>${s.timer_count_180s || 0}</td>
-      <td>${s.total_timer_runs}</td>
-    </tr>
-    `
-      )
-      .join("")}
-  </table>
-
-  <h2 id="rankings">🏆 Timer Rankings (${allTimerRankings.length})</h2>
-  <table>
-    <tr>
-      <th>Timer ID</th>
-      <th>Date</th>
-      <th>Video ID</th>
-      <th>Duration</th>
-      <th>Type</th>
-      <th>Answer</th>
-      <th>Started</th>
-      <th>Ended</th>
-      <th>Correct</th>
-      <th>Details</th>
-    </tr>
-    ${allTimerRankings
-      .map(
-        (r) => `
-    <tr>
-      <td><span class="timer-id">${r.timer_id}</span></td>
-      <td>${r.date || "-"}</td>
-      <td>${r.video_id}</td>
-      <td><span class="badge badge-${r.duration}">${r.duration}s</span></td>
-      <td>${r.question_type || "mcq"}</td>
-      <td>${r.correct_answer || "-"}</td>
-      <td>${r.started_at || "-"}</td>
-      <td>${r.ended_at || "<em>Running</em>"}</td>
-      <td>${r.total_participants || 0}</td>
-      <td><a href="/api/rankings/${r.timer_id}">View</a></td>
-    </tr>
-    `
-      )
-      .join("")}
-  </table>
-
-  <h2 id="responses">📝 User Responses (${allUserResponses.length})</h2>
-  <table>
-    <tr>
-      <th>Timer ID</th>
-      <th>Username</th>
-      <th>Response Time</th>
-      <th>Message</th>
-      <th>Correct</th>
-      <th>Created At</th>
-    </tr>
-    ${allUserResponses
-      .map(
-        (r) => `
-    <tr>
-      <td><span class="timer-id">${r.timer_id}</span></td>
-      <td>${r.username}</td>
-      <td>${
-        r.response_time_seconds
-          ? Number(r.response_time_seconds).toFixed(3)
-          : "-"
-      }s</td>
-      <td>${r.message || "-"}</td>
-      <td>${r.is_correct ? "✅" : "❌"}</td>
-      <td>${r.created_at || "-"}</td>
-    </tr>
-    `
-      )
-      .join("")}
-  </table>
-
-  <h2 id="timer-usage">⏱️ Timer Usage</h2>
-  <div class="stats">
-    <div class="stat-card">
-      <h3>15s Timers</h3>
-      <div class="value">${timerStats.total_15s}</div>
-    </div>
-    <div class="stat-card">
-      <h3>30s Timers</h3>
-      <div class="value">${timerStats.total_30s}</div>
-    </div>
-    <div class="stat-card">
-      <h3>45s Timers</h3>
-      <div class="value">${timerStats.total_45s}</div>
-    </div>
-    <div class="stat-card">
-      <h3>60s Timers</h3>
-      <div class="value">${timerStats.total_60s}</div>
-    </div>
-    <div class="stat-card">
-      <h3>90s Timers</h3>
-      <div class="value">${timerStats.total_90s}</div>
-    </div>
-    <div class="stat-card">
-      <h3>120s Timers</h3>
-      <div class="value">${timerStats.total_120s}</div>
-    </div>
-    <div class="stat-card">
-      <h3>180s Timers</h3>
-      <div class="value">${timerStats.total_180s}</div>
-    </div>
-  </div>
-</body>
-</html>
-      `;
-
-      res.send(html);
+      res.send(await renderDatabaseViewer());
     } catch (error) {
       res.status(500).send(`<h1>Error</h1><pre>${error.message}</pre>`);
     }
@@ -756,7 +482,7 @@ async function main() {
     console.log("Client connected");
 
     // Send current session state to newly connected client
-    // v3.9.1: If answer was already submitted, send "idle" to prevent modal on refresh
+    // If the answer was already submitted, send "idle" to prevent a stale modal on refresh.
     const effectiveStatus =
       session.status === "ended" && session.answerSubmitted
         ? "idle"
@@ -773,10 +499,10 @@ async function main() {
         : session.duration,
     });
 
-    // v3.12.1: Send existing video leaderboard on connect (for page refresh)
-    if (currentVideoId) {
+    // Send existing video leaderboard on connect for page refresh.
+    if (currentDbSessionId || currentVideoId) {
       scores
-        .getVideoLeaderboard(currentVideoId, 100)
+        .getVideoLeaderboard(currentDbSessionId || currentVideoId, 100)
         .then((leaderboard) => {
           if (leaderboard && leaderboard.length > 0) {
             // Get questions_asked from videos table
@@ -800,11 +526,10 @@ async function main() {
      * 2. Set status to 'running'
      * 3. Record start time
      * 4. Set duration
-     * 5. Generate unique timer_id (DDMMYYHHMMSS)
+     * 5. Generate a readable runtime/question ID
      * 6. Broadcast to all clients
      * 7. Set timeout to end session when timer completes
-     * 8. Increment timer count in database
-     * 9. NEW v3.6: Create timer ranking record
+     * 8. Create the question/runtime record
      */
     socket.on("start-timer", async (data) => {
       const { duration, questionType } = data; // duration in seconds, questionType: 'mcq' | 'fill-blank'
@@ -826,7 +551,7 @@ async function main() {
       // Reset previous session
       resetSession();
 
-      // Generate unique timer ID (DDMMYYHHMMSS format)
+      // Generate readable runtime/question ID.
       const timerId = rankings.generateTimerId();
 
       // Set new session state
@@ -834,8 +559,7 @@ async function main() {
       session.startTime = new Date();
       session.duration = normalizedDuration;
       session.timerId = timerId;
-      session.questionType = normalizedQuestionType; // NEW v3.7
-      seedPreStartResponses();
+      session.questionType = normalizedQuestionType;
 
       console.log(
         `[Timer] Generated timer_id: ${timerId}, questionType: ${session.questionType}`
@@ -844,10 +568,7 @@ async function main() {
       // Database operations
       if (currentDbSessionId) {
         try {
-          // Increment timer count
-          await sessions.incrementTimerCount(currentDbSessionId, normalizedDuration);
-
-          // NEW v3.6: Create timer ranking record (v3.7: includes questionType)
+          // Create the question/runtime row before seeding buffered answers.
           await rankings.createTimerRanking(
             timerId,
             currentDbSessionId,
@@ -858,6 +579,21 @@ async function main() {
         } catch (error) {
           console.error("[Database] Failed to create timer ranking:", error);
         }
+      }
+
+      const seededResponses = seedPreStartResponses();
+      for (const entry of seededResponses) {
+        rankings
+          .recordResponseAttempt(
+            timerId,
+            entry.author,
+            entry.message,
+            entry.receivedAt,
+            session.startTime
+          )
+          .catch((err) => {
+            console.error("[Database] Failed to record buffered answer:", err.message);
+          });
       }
 
       // Broadcast session start to ALL connected clients
@@ -873,7 +609,7 @@ async function main() {
         activeTimerTimeout = null;
         // Only buffer if this exact timer is still running (not manually stopped/replaced)
         if (session.status === "running" && session.timerId === expectedTimerId) {
-          beginAnswerBuffer(io, normalizedDuration, true);
+          beginAnswerBuffer(io, normalizedDuration);
         }
       }, normalizedDuration * 1000);
     });
@@ -888,12 +624,12 @@ async function main() {
           activeTimerTimeout = null;
         }
         console.log(`\n========== TIMER STOPPED MANUALLY ==========`);
-        beginAnswerBuffer(io, session.duration, false);
+        beginAnswerBuffer(io, session.duration);
       }
     });
 
     // ----------------------------------------
-    // Handle: SUBMIT ANSWER (NEW v3.7)
+    // Handle: SUBMIT ANSWER
     // ----------------------------------------
     /**
      * When host submits the correct answer:
@@ -919,181 +655,164 @@ async function main() {
         return;
       }
 
+      if (activeSubmitTimerId) {
+        console.log(
+          `[Submit] Already processing timer ${activeSubmitTimerId}; rejecting duplicate`
+        );
+        socket.emit("session-error", {
+          type: "answer-submit-in-progress",
+          message: "Answer submission is already being processed.",
+        });
+        return;
+      }
+
       // Prevent refreshes or duplicate clicks from scoring the same timer twice.
       if (session.answerSubmitted) {
         console.log("[Submit] Ignoring - answer already submitted");
+        socket.emit("session-error", {
+          type: "answer-already-submitted",
+          message: "This answer was already submitted.",
+        });
         return;
       }
+
+      const submitTimerId = session.timerId;
+      activeSubmitTimerId = submitTimerId || "unknown";
       session.answerSubmitted = true;
 
-      console.log(`\n========== CORRECT ANSWER: ${answer} ==========`);
-      console.log(`[Submit] Question type: ${session.questionType}`);
-      console.log(`[Submit] Total participants: ${session.userResponses.size}`);
+      try {
+        console.log(`\n========== CORRECT ANSWER: ${answer} ==========`);
+        console.log(`[Submit] Question type: ${session.questionType}`);
+        console.log(`[Submit] Total participants: ${session.userResponses.size}`);
 
-      const correctAnswer = answer.toUpperCase().trim();
-      const isMCQ = session.questionType === "mcq";
+        const correctAnswer = answer.toUpperCase().trim();
+        const isMCQ = session.questionType === "mcq";
+        const allResponses = [];
+        const correctUsers = [];
 
-      // v3.8: Build array of ALL responses with isCorrect flag
-      const allResponses = [];
-      const correctUsers = [];
+        session.userResponses.forEach((data, author) => {
+          if (!data || !data.message) return;
 
-      session.userResponses.forEach((data, author) => {
-        // Safety check - skip if message is missing
-        if (!data || !data.message) return;
+          const userAnswer = data.message.toUpperCase().trim();
+          const isCorrect = isMCQ
+            ? userAnswer.charAt(0) === correctAnswer
+            : userAnswer === correctAnswer;
 
-        const userAnswer = data.message.toUpperCase().trim();
-
-        let isCorrect = false;
-        if (isMCQ) {
-          // For MCQ: Check if message starts with the correct letter (A, B, C, D)
-          // Also accept: "A", "A.", "A)", "A is correct", etc.
-          const firstChar = userAnswer.charAt(0);
-          isCorrect = firstChar === correctAnswer;
-        } else {
-          // For Fill-in-blanks: Exact match (case-insensitive)
-          isCorrect = userAnswer === correctAnswer;
-        }
-
-        // v3.8: Add ALL responses to the array
-        allResponses.push({
-          author,
-          responseTime: data.firstResponseTime,
-          message: data.message,
-          isCorrect,
-        });
-
-        // Add to correct users for rankings (existing logic)
-        if (isCorrect) {
-          correctUsers.push({
+          allResponses.push({
             author,
             responseTime: data.firstResponseTime,
             responseCount: data.responseCount,
             message: data.message,
+            isCorrect,
           });
-        }
-      });
 
-      console.log(`[Submit] Correct answers: ${correctUsers.length}`);
-      console.log(
-        `[Submit] Wrong answers: ${allResponses.length - correctUsers.length}`
-      );
-
-      // v3.9: Calculate answer distribution for MCQ questions
-      let answerDistribution = null;
-      if (isMCQ) {
-        answerDistribution = { A: 0, B: 0, C: 0, D: 0 };
-        session.userResponses.forEach((data) => {
-          const firstChar = data.message.toUpperCase().trim().charAt(0);
-          if (firstChar === "A") answerDistribution.A++;
-          else if (firstChar === "B") answerDistribution.B++;
-          else if (firstChar === "C") answerDistribution.C++;
-          else if (firstChar === "D") answerDistribution.D++;
+          if (isCorrect) {
+            correctUsers.push({
+              author,
+              responseTime: data.firstResponseTime,
+              responseCount: data.responseCount,
+              message: data.message,
+            });
+          }
         });
-        answerDistribution.total =
-          answerDistribution.A +
-          answerDistribution.B +
-          answerDistribution.C +
-          answerDistribution.D;
-        answerDistribution.correctAnswer = correctAnswer;
-        console.log(
-          `[Submit] Answer distribution: A=${answerDistribution.A}, B=${answerDistribution.B}, C=${answerDistribution.C}, D=${answerDistribution.D}`
-        );
-      }
 
-      // Sort by response time (fastest first) and add rank
-      correctUsers.sort((a, b) => a.responseTime - b.responseTime);
-      const filteredRankings = correctUsers
-        .slice(0, 25)
-        .map((entry, index) => ({
+        console.log(`[Submit] Correct answers: ${correctUsers.length}`);
+        console.log(
+          `[Submit] Wrong answers: ${allResponses.length - correctUsers.length}`
+        );
+
+        let answerDistribution = null;
+        if (isMCQ) {
+          answerDistribution = { A: 0, B: 0, C: 0, D: 0 };
+          session.userResponses.forEach((data) => {
+            const firstChar = data.message.toUpperCase().trim().charAt(0);
+            if (firstChar === "A") answerDistribution.A++;
+            else if (firstChar === "B") answerDistribution.B++;
+            else if (firstChar === "C") answerDistribution.C++;
+            else if (firstChar === "D") answerDistribution.D++;
+          });
+          answerDistribution.total =
+            answerDistribution.A +
+            answerDistribution.B +
+            answerDistribution.C +
+            answerDistribution.D;
+          answerDistribution.correctAnswer = correctAnswer;
+          console.log(
+            `[Submit] Answer distribution: A=${answerDistribution.A}, B=${answerDistribution.B}, C=${answerDistribution.C}, D=${answerDistribution.D}`
+          );
+        }
+
+        correctUsers.sort((a, b) => a.responseTime - b.responseTime);
+        const filteredRankings = correctUsers.slice(0, 25).map((entry, index) => ({
           ...entry,
           rank: index + 1,
         }));
 
-      console.log("Filtered Rankings:", filteredRankings);
+        console.log("Filtered Rankings:", filteredRankings);
 
-      // Save to database
-      if (session.timerId) {
-        try {
-          // v3.8: Save ALL user responses (max 200 entries)
+        if (session.timerId) {
+          // Snapshot in-memory first answers in case a background attempt write is still pending.
           await rankings.saveAllUserResponses(session.timerId, allResponses);
 
-          // Existing: Save top 50 correct answers for leaderboard
-          const top50 = correctUsers.slice(0, 50).map((entry, index) => ({
-            ...entry,
-            rank: index + 1,
-          }));
-          await rankings.saveRankingEntries(session.timerId, top50);
-
-          // v3.7: Save correct answer along with participant count
-          await rankings.endTimerRanking(
+          const finalizedQuestion = await rankings.finalizeQuizRun(
             session.timerId,
-            correctUsers.length,
             correctAnswer
           );
 
-          // v3.9: Save answer distribution for MCQ questions
-          if (answerDistribution) {
-            await rankings.saveAnswerDistribution(
-              session.timerId,
-              answerDistribution
-            );
+          if (finalizedQuestion?.answerDistribution) {
+            answerDistribution = {
+              ...finalizedQuestion.answerDistribution,
+              correctAnswer,
+            };
           }
 
           console.log(
-            `[Database] Saved ${top50.length} correct answers for timer ${session.timerId} (answer: ${correctAnswer})`
+            `[Database] Finalized ${session.timerId}: ${finalizedQuestion.correctCount}/${finalizedQuestion.totalResponses} correct`
           );
-        } catch (error) {
-          console.error("[Database] Failed to save rankings:", error);
         }
-      }
 
-      // Broadcast filtered rankings to all clients
-      io.emit("rankings", filteredRankings);
+        io.emit("rankings", filteredRankings);
 
-      // v3.9: Broadcast answer distribution for MCQ (separate event for pie chart)
-      if (answerDistribution) {
-        io.emit("answer-distribution", answerDistribution);
-      }
-
-      // v3.12.1: Update video scores and emit leaderboard (video_id based)
-      if (currentVideoId) {
-        try {
-          // Build participants array from allResponses with response time
-          const participants = allResponses.map((r) => ({
-            username: r.author,
-            isCorrect: r.isCorrect,
-            responseTimeMs: r.responseTime * 1000, // Convert seconds to ms
-          }));
-
-          // Batch update all user scores
-          await scores.batchUpdateScores(currentVideoId, participants);
-
-          // Count finalized scored questions only after the answer is submitted.
-          await scores.incrementQuestionsAsked(currentVideoId);
-
-          // Get top 100 leaderboard
-          const leaderboard = await scores.getVideoLeaderboard(
-            currentVideoId,
-            100
-          );
-
-          // Get questions_asked count
-          const video = await videos.getVideo(currentVideoId);
-
-          // Emit to all clients with questionsAsked
-          io.emit("session-leaderboard", {
-            leaderboard,
-            questionsAsked: video?.questions_asked || 0,
-          });
-          console.log(
-            `[Video] Emitted leaderboard with ${leaderboard.length} entries, ${
-              video?.questions_asked || 0
-            } questions`
-          );
-        } catch (error) {
-          console.error("[Video] Failed to update scores:", error.message);
-          session.answerSubmitted = false;
+        if (answerDistribution) {
+          io.emit("answer-distribution", answerDistribution);
         }
+
+        if (currentDbSessionId || currentVideoId) {
+          const scoreScopeId = currentDbSessionId || currentVideoId;
+          try {
+            const leaderboard = await scores.getVideoLeaderboard(scoreScopeId, 100);
+            const video = currentVideoId ? await videos.getVideo(currentVideoId) : null;
+
+            io.emit("session-leaderboard", {
+              leaderboard,
+              questionsAsked: video?.questions_asked || 0,
+            });
+            console.log(
+              `[Video] Emitted leaderboard with ${leaderboard.length} entries, ${
+                video?.questions_asked || 0
+              } questions`
+            );
+          } catch (error) {
+            console.error("[Video] Failed to update scores:", error.message);
+            session.answerSubmitted = false;
+            emitSessionError(
+              io,
+              "score-update-failed",
+              "Failed to save scores. Please submit the answer again."
+            );
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("[Submit] Failed to finalize answer:", error.message);
+        session.answerSubmitted = false;
+        emitSessionError(
+          io,
+          "answer-submit-failed",
+          "Failed to submit the answer. Scores were not finalized."
+        );
+      } finally {
+        activeSubmitTimerId = null;
       }
     });
 
@@ -1247,9 +966,7 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
       return controller;
     }
 
-    // ========================================
-    // EXTRACT VIDEO METADATA (v3.11)
-    // ========================================
+    // Extract video metadata for the UI and local database.
     const videoMetadata = {
       channel_id: info.basic_info.channel?.id || null,
       channel_name:
@@ -1294,9 +1011,7 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
       return controller;
     }
 
-    // ========================================
-    // METADATA REFRESH INTERVAL (v3.11)
-    // ========================================
+    // Refresh video metadata periodically while the poller is active.
     // Note: basic_info.view_count shows TOTAL views, not live viewers
     // Future: Implement live viewer count via getLiveChat().on('update-metadata')
     let metadataRefreshInterval = null;
@@ -1458,6 +1173,21 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
               const tracked = recordSessionResponse(author, finalMessage, now);
               isDuplicate = tracked.isDuplicate;
               responseTime = tracked.responseTime;
+
+              rankings
+                .recordResponseAttempt(
+                  session.timerId,
+                  author,
+                  finalMessage,
+                  now,
+                  session.startTime
+                )
+                .catch((err) => {
+                  console.error(
+                    "[Database] Failed to record response attempt:",
+                    err.message
+                  );
+                });
 
               console.log(
                 `[${isDuplicate ? "DUPLICATE" : "NEW"}] [${responseTime.toFixed(
