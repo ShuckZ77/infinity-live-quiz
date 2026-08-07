@@ -64,7 +64,7 @@ async function getSummary() {
   return rows[0] || {};
 }
 
-async function renderDatabaseViewer() {
+async function renderDatabaseViewer(cspNonce = "") {
   const summary = await getSummary();
   const allVideos = await videos.getAllVideos(25);
   const allSessions = await sessions.getAllSessions(25);
@@ -165,7 +165,7 @@ async function renderDatabaseViewer() {
     <section id="videos" class="section">
       <h2>Recent Videos</h2>
       ${table(["Video", "Channel", "Title", "Views", "Questions"], allVideos.map((video) => [
-        `<a href="https://youtube.com/watch?v=${encodeURIComponent(video.video_id)}" target="_blank">${escapeHtml(video.video_id)}</a>`,
+        `<a href="https://youtube.com/watch?v=${encodeURIComponent(video.video_id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(video.video_id)}</a>`,
         escapeHtml(video.channel_name || "-"),
         escapeHtml(shortText(video.title)),
         escapeHtml(Number(video.approx_views || 0).toLocaleString()),
@@ -211,7 +211,7 @@ async function renderDatabaseViewer() {
       ]), { pageSize: 10 })}
     </section>
   </main>
-  <script>
+  <script nonce="${escapeHtml(cspNonce)}">
     document.querySelectorAll(".table-shell").forEach((shell) => {
       const pageSize = Number(shell.dataset.pageSize || 10);
       const rows = Array.from(shell.querySelectorAll("tbody tr:not(.empty-row)"));

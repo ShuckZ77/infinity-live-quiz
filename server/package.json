@@ -20,12 +20,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "express": "*",
-    "socket.io": "*",
-    "sql.js": "*",
-    "youtubei.js": "*"
+    "express": "5.2.1",
+    "socket.io": "4.8.3",
+    "sql.js": "1.14.1",
+    "youtubei.js": "17.0.1"
   },
   "devDependencies": {
-    "nodemon": "*"
+    "nodemon": "3.1.14"
   }
 }

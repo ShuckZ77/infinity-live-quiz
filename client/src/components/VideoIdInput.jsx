@@ -17,12 +17,13 @@ export const VideoIdInput = ({ onSetVideoId, status, error }) => {
     );
     const match = val.match(urlRegex);
 
-    if (match && match[1]) {
+    if (match && /^[A-Za-z0-9_-]{11}$/.test(match[1])) {
       setInputVal(match[1]);
       setIsValid(true);
       // Optional: Auto-submit on valid paste?
       // onSetVideoId(match[1]);
-    } else if (val.length === 11) {
+    } else if (/^[A-Za-z0-9_-]{11}$/.test(val.trim())) {
+      setInputVal(val.trim());
       setIsValid(true);
     } else {
       setIsValid(false);

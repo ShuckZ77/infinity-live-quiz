@@ -13,6 +13,7 @@
 
 const originalStdoutWrite = process.stdout.write;
 const originalStderrWrite = process.stderr.write;
+const originalEmitWarning = process.emitWarning;
 
 process.stdout.write = function (chunk, encoding, callback) {
   const str = chunk.toString();
@@ -34,7 +35,13 @@ process.stderr.write = function (chunk, encoding, callback) {
   return originalStderrWrite.call(process.stderr, chunk, encoding, callback);
 };
 
-process.emitWarning = () => {};
+process.emitWarning = function (warning, ...args) {
+  const message = warning instanceof Error ? warning.message : String(warning);
+  if (message.includes("[YOUTUBEJS]") || message.includes("TimeoutNaNWarning")) {
+    return;
+  }
+  return originalEmitWarning.call(process, warning, ...args);
+};
 
 // ==========================================
 // SECTION 2: IMPORTS & SETUP
@@ -43,6 +50,8 @@ const { Innertube, UniversalCache } = require("youtubei.js");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const crypto = require("crypto");
+const fs = require("fs");
 const path = require("path");
 
 // Database imports
@@ -58,6 +67,52 @@ const { renderDatabaseViewer } = require("./database/viewer");
 const RESPONSE_BUFFER_SECONDS = 3;
 const ALLOWED_TIMER_DURATIONS = new Set([15, 30, 45, 60, 90, 120, 180]);
 const RECENT_CHAT_RETENTION_MS = RESPONSE_BUFFER_SECONDS * 1000 + 2000;
+const PORT = 3001;
+const LISTEN_HOST = "127.0.0.1";
+const MAX_CORRECT_ANSWER_LENGTH = 200;
+const MAX_CHAT_AUTHOR_LENGTH = 100;
+const MAX_CHAT_MESSAGE_LENGTH = 500;
+const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+function isLoopbackHostname(hostname) {
+  return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(
+    String(hostname || "").toLowerCase()
+  );
+}
+
+function isAllowedHostHeader(hostHeader) {
+  if (!hostHeader || typeof hostHeader !== "string") return false;
+  try {
+    return isLoopbackHostname(new URL(`http://${hostHeader}`).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedSocketOrigin(origin) {
+  if (!origin) return true;
+  try {
+    const parsed = new URL(origin);
+    return (
+      ["http:", "https:"].includes(parsed.protocol) &&
+      isLoopbackHostname(parsed.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function parseBoundedLimit(value, fallback, maximum = 500) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, maximum);
+}
+
+function normalizeVideoId(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return YOUTUBE_VIDEO_ID_PATTERN.test(normalized) ? normalized : null;
+}
 
 // ==========================================
 // SECTION 3: SESSION STATE MANAGEMENT
@@ -247,16 +302,56 @@ async function main() {
   // ----------------------------------------
   const app = express();
   const server = http.createServer(app);
-  const io = new Server(server);
-  const PORT = 3001;
+  const io = new Server(server, {
+    maxHttpBufferSize: 64 * 1024,
+    allowRequest: (request, callback) => {
+      callback(null, isAllowedSocketOrigin(request.headers.origin));
+    },
+  });
   const clientDistPath = path.join(__dirname, "../client/dist");
   const clientIndexPath = path.join(clientDistPath, "index.html");
 
+  app.disable("x-powered-by");
+  app.use((req, res, next) => {
+    if (!isAllowedHostHeader(req.headers.host)) {
+      return res.status(403).send("Forbidden");
+    }
+
+    const cspNonce = crypto.randomBytes(16).toString("base64");
+    res.locals.cspNonce = cspNonce;
+    res.setHeader(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "base-uri 'none'",
+        "connect-src 'self' ws://localhost:* ws://127.0.0.1:*",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "img-src 'self' data:",
+        "object-src 'none'",
+        `script-src 'self' 'nonce-${cspNonce}'`,
+        "style-src 'self' 'unsafe-inline'",
+      ].join("; ")
+    );
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+    res.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+
+    if (req.path === "/db" || req.path.startsWith("/api/")) {
+      res.setHeader("Cache-Control", "no-store");
+    }
+
+    next();
+  });
+
   // Serve React build from client/dist (relative to project root)
-  app.use(express.static(clientDistPath));
+  app.use(express.static(clientDistPath, { dotfiles: "deny", index: false }));
 
   app.get("/", (req, res, next) => {
-    if (require("fs").existsSync(clientIndexPath)) {
+    if (fs.existsSync(clientIndexPath)) {
       return res.sendFile(clientIndexPath);
     }
 
@@ -302,7 +397,7 @@ async function main() {
 
   app.get("/api/users/top", async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit) || 25;
+      const limit = parseBoundedLimit(req.query.limit, 25);
       const topUsers = await users.getTopUsers(limit);
       res.json(topUsers);
     } catch (error) {
@@ -326,7 +421,7 @@ async function main() {
   // Get all timer rankings
   app.get("/api/rankings", async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit) || 100;
+      const limit = parseBoundedLimit(req.query.limit, 100);
       const allRankings = await rankings.getAllTimerRankings(limit);
       res.json(allRankings);
     } catch (error) {
@@ -369,7 +464,7 @@ async function main() {
   // Get user's ranking history
   app.get("/api/rankings/user/:username", async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseBoundedLimit(req.query.limit, 10);
       const userRankings = await rankings.getTopRankingsByUser(
         req.params.username,
         limit
@@ -423,7 +518,7 @@ async function main() {
   // Get user's answer history across all timers
   app.get("/api/users/:username/answers", async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit) || 50;
+      const limit = parseBoundedLimit(req.query.limit, 50);
       const history = await rankings.getUserAnswerHistory(
         req.params.username,
         limit
@@ -456,9 +551,10 @@ async function main() {
   // ----------------------------------------
   app.get("/db", async (req, res) => {
     try {
-      res.send(await renderDatabaseViewer());
+      res.send(await renderDatabaseViewer(res.locals.cspNonce));
     } catch (error) {
-      res.status(500).send(`<h1>Error</h1><pre>${error.message}</pre>`);
+      console.error("[Database Viewer] Failed to render:", error);
+      res.status(500).send("<h1>Database viewer unavailable</h1>");
     }
   });
 
@@ -532,7 +628,7 @@ async function main() {
      * 8. Create the question/runtime record
      */
     socket.on("start-timer", async (data) => {
-      const { duration, questionType } = data; // duration in seconds, questionType: 'mcq' | 'fill-blank'
+      const { duration, questionType } = data || {}; // duration in seconds, questionType: 'mcq' | 'fill-blank'
       const normalizedDuration = Number(duration);
       const normalizedQuestionType =
         questionType === "fill-blank" ? "fill-blank" : "mcq";
@@ -650,6 +746,23 @@ async function main() {
         return;
       }
 
+      const correctAnswer = answer.toUpperCase().trim();
+      const isMCQ = session.questionType === "mcq";
+      const isValidAnswer = isMCQ
+        ? ["A", "B", "C", "D"].includes(correctAnswer)
+        : correctAnswer.length > 0 &&
+          correctAnswer.length <= MAX_CORRECT_ANSWER_LENGTH;
+
+      if (!isValidAnswer) {
+        socket.emit("session-error", {
+          type: "invalid-answer",
+          message: isMCQ
+            ? "Select A, B, C, or D."
+            : `Answers must be ${MAX_CORRECT_ANSWER_LENGTH} characters or fewer.`,
+        });
+        return;
+      }
+
       if (session.status !== "ended") {
         console.log("[Submit] Ignoring - session not ended");
         return;
@@ -685,8 +798,6 @@ async function main() {
         console.log(`[Submit] Question type: ${session.questionType}`);
         console.log(`[Submit] Total participants: ${session.userResponses.size}`);
 
-        const correctAnswer = answer.toUpperCase().trim();
-        const isMCQ = session.questionType === "mcq";
         const allResponses = [];
         const correctUsers = [];
 
@@ -835,10 +946,6 @@ async function main() {
     });
   });
 
-  server.listen(PORT, () => {
-    console.log(`Web UI running at http://localhost:${PORT}`);
-  });
-
   // ----------------------------------------
   // 4.3: Initialize YouTube Client
   // ----------------------------------------
@@ -864,7 +971,16 @@ async function main() {
 
     // Handle Setting Video ID
     socket.on("set-video-id", async (videoId) => {
-      console.log(`[Socket] Request to set Video ID: ${videoId}`);
+      const normalizedVideoId = normalizeVideoId(videoId);
+      if (!normalizedVideoId) {
+        socket.emit("video-status", {
+          status: "error",
+          error: "Enter a valid 11-character YouTube video ID.",
+        });
+        return;
+      }
+
+      console.log(`[Socket] Request to set Video ID: ${normalizedVideoId}`);
 
       // Stop existing poller
       if (activePoller) {
@@ -882,11 +998,11 @@ async function main() {
         currentDbSessionId = null;
       }
 
-      currentVideoId = videoId;
+      currentVideoId = normalizedVideoId;
 
       // Create new DB session
       try {
-        currentDbSessionId = await sessions.getOrCreateSession(videoId);
+        currentDbSessionId = await sessions.getOrCreateSession(normalizedVideoId);
         console.log(`[Server] Database session ID: ${currentDbSessionId}`);
       } catch (error) {
         console.error("[Server] Failed to create database session:", error);
@@ -895,30 +1011,50 @@ async function main() {
       }
 
       // Start Polling
-      activePoller = await fetchLiveChat(yt, videoId, serverStartTime, io);
+      activePoller = await fetchLiveChat(
+        yt,
+        normalizedVideoId,
+        serverStartTime,
+        io
+      );
     });
   });
 
   console.log("[Server] Ready. Waiting for Video ID...");
+
+  // Listen only after every socket handler is registered so early UI events
+  // cannot be dropped during YouTube client initialization.
+  server.listen(PORT, LISTEN_HOST, () => {
+    console.log(`Web UI running at http://localhost:${PORT}`);
+  });
 
   // ----------------------------------------
   // 4.5: Optional CLI Usage (Auto-Start)
   // ----------------------------------------
   const cliVideoId = process.argv[2];
   if (cliVideoId) {
-    console.log(`[CLI] Video ID provided: ${cliVideoId}`);
-    currentVideoId = cliVideoId;
+    const normalizedCliVideoId = normalizeVideoId(cliVideoId);
+    if (!normalizedCliVideoId) {
+      throw new Error("CLI video ID must be an 11-character YouTube video ID.");
+    }
+    console.log(`[CLI] Video ID provided: ${normalizedCliVideoId}`);
+    currentVideoId = normalizedCliVideoId;
 
     // Create DB session
     try {
-      currentDbSessionId = await sessions.getOrCreateSession(cliVideoId);
+      currentDbSessionId = await sessions.getOrCreateSession(normalizedCliVideoId);
       console.log(`[Server] Database session ID: ${currentDbSessionId}`);
     } catch (error) {
       console.error("[Server] Failed to create database session:", error);
     }
 
     // Start Polling immediately
-    activePoller = await fetchLiveChat(yt, cliVideoId, serverStartTime, io);
+    activePoller = await fetchLiveChat(
+      yt,
+      normalizedCliVideoId,
+      serverStartTime,
+      io
+    );
   }
 }
 
@@ -1036,9 +1172,9 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
         );
 
         // Update database
-        videos
-          .upsertVideo(videoId, { view_count: approxViews })
-          .catch(() => {});
+        videos.upsertVideo(videoId, { view_count: approxViews }).catch((err) => {
+          console.error("[Video] Metadata database update failed:", err.message);
+        });
 
         // Emit to clients
         io.emit("video-status", {
@@ -1091,7 +1227,7 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
 
         if (!contents) {
           // console.log("[DEBUG] No continuation contents, stopping.");
-          isRunning = false;
+          controller.stop();
           io.emit("video-status", { status: "ended", videoId });
           return;
         }
@@ -1109,16 +1245,21 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
         // Process each chat action
         // ----------------------------------------
         for (const action of actionsArray) {
-          if (
-            action.type === "AddChatItemAction" ||
-            action.constructor.name === "AddChatItemAction"
-          ) {
+          if (!action) continue;
+          const actionType = action.type || action.constructor?.name;
+          if (actionType === "AddChatItemAction") {
             const item = action.item;
             if (!item) continue;
 
-            const author =
-              item.author?.name?.text || item.author?.name || "Unknown";
-            const message = item.message?.text || "";
+            const author = String(
+              item.author?.name?.text || item.author?.name || "Unknown"
+            )
+              .trim()
+              .slice(0, MAX_CHAT_AUTHOR_LENGTH);
+            const message = String(item.message?.text || "").slice(
+              0,
+              MAX_CHAT_MESSAGE_LENGTH
+            );
 
             if (!message) continue;
 
@@ -1215,7 +1356,10 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
               author,
               message: finalMessage,
               isDuplicate,
-              responseTime: responseTime !== null ? responseTime.toFixed(3) : null,
+              responseTime:
+                responseTime !== null
+                  ? Number(responseTime.toFixed(3))
+                  : null,
             });
           }
         }
@@ -1230,7 +1374,9 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
 
     poll();
   } catch (error) {
-    if (error.message.includes("Live Chat is not available")) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error || "Unknown error");
+    if (errorMessage.includes("Live Chat is not available")) {
       console.error("Error: Live chat not reachable.");
       io.emit("video-status", {
         status: "offline",
@@ -1242,7 +1388,7 @@ async function fetchLiveChat(yt, videoId, serverStartTime, io) {
       io.emit("video-status", {
         status: "error",
         videoId,
-        error: error.message,
+        error: "Unable to connect to this live chat.",
       });
     }
   }

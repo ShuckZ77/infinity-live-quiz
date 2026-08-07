@@ -51,18 +51,23 @@ if not exist "server\data" mkdir "server\data"
 echo Node.js detected:
 node --version
 echo.
-echo Opening http://localhost:3001 in your browser...
+echo SERVER DETAILS
+echo ------------------------------------------------
+echo Quiz frontend:   http://localhost:3001
+echo Database viewer: http://localhost:3001/db
+echo Local database:  server\data\quiz.db
+echo ------------------------------------------------
+echo.
+echo Wait until this window displays:
+echo   Web UI running at http://localhost:3001
+echo.
+echo Then open any browser and visit:
+echo   http://localhost:3001
+echo.
 echo Keep this window open while using the quiz.
 echo Press Ctrl+C to stop the app.
 echo ================================================
 echo.
-
-where powershell.exe >nul 2>&1
-if errorlevel 1 (
-    start "" http://localhost:3001
-) else (
-    start "" powershell.exe -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 2; Start-Process 'http://localhost:3001'"
-)
 
 node server\index.js
 set "APP_EXIT=%ERRORLEVEL%"

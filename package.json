@@ -14,7 +14,8 @@
     "build": "cd client && npm run build",
     "build:client": "cd client && npm run build",
     "dist:windows": "node scripts/create-windows-package.js",
-    "install:all": "npm install --no-package-lock && cd server && npm install --no-package-lock && cd ../client && npm install --no-package-lock",
+    "test:release": "node scripts/release-smoke-test.js",
+    "install:all": "npm --prefix server ci && npm --prefix client ci",
     "debug": "cd server && npm run debug",
     "db": "cd server && npm run db"
   },

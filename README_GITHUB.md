@@ -52,7 +52,8 @@ Readable IDs:
     ```bash
     npm run install:all
     ```
-    This project intentionally installs without lockfiles so each new machine resolves the newest matching npm packages.
+    The checked-in lockfiles reproduce the dependency versions used for the
+    security-audited release.
 3.  Build the frontend:
     ```bash
     npm run build

@@ -112,6 +112,7 @@ export const AnswerSelectionModal = ({ isOpen, questionType, onSubmit, onClose }
                 placeholder="Type the correct answer..."
                 value={textAnswer}
                 onChange={(e) => setTextAnswer(e.target.value)}
+                maxLength={200}
                 disabled={isSubmitting}
                 autoFocus
               />

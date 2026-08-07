@@ -19,8 +19,8 @@ const MessageItem = ({ message }) => {
   return (
     <div className={`message-item ${isDuplicate ? 'duplicate' : ''}`}>
       {/* Time badge: response time during quiz, real time when idle */}
-      {responseTime ? (
-        <span className="response-time">{responseTime}s</span>
+      {responseTime !== null && responseTime !== undefined ? (
+        <span className="response-time">{responseTime.toFixed(3)}s</span>
       ) : (
         <span className="timestamp">{realTimestamp}</span>
       )}
