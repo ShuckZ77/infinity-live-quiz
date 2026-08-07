@@ -13,6 +13,7 @@
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm run build",
     "build:client": "cd client && npm run build",
+    "dist:windows": "node scripts/create-windows-package.js",
     "install:all": "npm install --no-package-lock && cd server && npm install --no-package-lock && cd ../client && npm install --no-package-lock",
     "debug": "cd server && npm run debug",
     "db": "cd server && npm run db"
